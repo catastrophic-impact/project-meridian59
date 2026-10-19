@@ -1,0 +1,873 @@
+% Meridian 59, Copyright 1994-2012 Andrew Kirmse and Chris Kirmse.
+% All rights reserved.
+%
+% This software is distributed under a license that is described in
+% the LICENSE file that accompanies it.
+%
+% Meridian is a registered trademark.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+OutdoorsG9 is MonsterRoom
+
+constants:
+
+   include blakston.khd
+
+   SECTOR_PLATFORM = 3
+   SECTOR_PLATFORM_DN = 250
+   SECTOR_PLATFORM_UP = 800
+   SECTOR_LEDGE_N = 4
+   SECTOR_LEDGE_N_DN = 510
+   SECTOR_LEDGE_N_UP = 540
+   SECTOR_LEDGE_S = 9
+   SECTOR_LEDGE_S_DN = 510
+   SECTOR_LEDGE_S_UP = 540
+   SECTOR_SPIRE_CENTER = 2
+   SECTOR_SPIRE_CENTER_DN = 400
+   SECTOR_SPIRE_CENTER_UP = 800
+   CENTER_ROW = 20
+   CENTER_COL = 55
+   SECTOR_SPIRE_NW = 5
+   NW_ROW = 11
+   NW_COL = 43
+   SECTOR_SPIRE_SW = 6
+   SW_ROW = 28
+   SW_COL = 43
+   SECTOR_SPIRE_SE = 7
+   SE_ROW = 28
+   SE_COL = 67
+   SECTOR_SPIRE_NE = 8
+   NE_ROW = 11
+   NE_COL = 67
+   SECTOR_SPIRE_DN = 200
+   SECTOR_SPIRE_UP = 340
+   SECTOR_CUBBYHOLES = 10
+   SECTOR_CUBBYHOLES_DN = 214
+   SECTOR_CUBBYHOLES_UP = 314
+
+   SPIRE_OFF = 9750        % texture ID to indicate lighting state
+   SPIRE_ON = 9753
+
+   G9_UP_SPEED = 15
+   G9_DN_SPEED = 15
+
+   % 2 minutes (time the puzzle stays solved before resetting)
+   PUZZLE_TIMELIMIT = 1000 * 60 * 2
+   % 5 minutes (once touched, time the puzzle stays that way before resetting)
+   LEVER_TOUCHEDTIMELIMIT = 1000 * 60 * 5
+
+resources:
+
+   room_name_OutdoorsG9 ="An ancient place, its origin forgotten"
+   room_OutdoorsG9 = g9.roo
+   OutdoorsG9_music = walk4.mid
+
+   G9_door_sound = down2.wav
+   G9_platform_sound = rumble.wav
+
+   G9_center_lever_desc = "Clearly of ancient design, you somehow doubt that this lever still does what it "
+      "was originally enchanted to do, if it does anything at all."
+   G9_outer1_lever_desc = "Clearly of ancient design, you somehow doubt that this lever still does what it "
+      "was originally enchanted to do, if it does anything at all."
+   G9_outer2_lever_desc = "Clearly of ancient design, you somehow doubt that this lever still does what it "
+      "was originally enchanted to do, if it does anything at all."
+   G9_floor_lever_desc = "These levers, crafted through collaboration between the cities, now grant control over the pillars once governed by the magic of the nearby mana node."
+
+   G9_distant_rumble_msg = "The ground quakes beneath your feet - the entrance to the Necropolis has been disturbed."
+
+   G9_lever_icon = neclever.bgf
+
+   G9_tome_name = "Journal of the Watcher of the Brax Arena"
+   G9_tome_text = "[A hastily scrawled note has been added to the first page: 'These instructions are no longer accurate - the levers' enchantments have completely degraded.']\n\n" 
+      "For the sake of future Watchers, I wish to set down now a set of "
+      "instructions for correctly operating the Arena's magically enchanted devices (as the "
+      "last Watcher can no longer tell you, it does not pay to invoke the Queen's "
+      "wrath by making careless mistakes).\n\n"
+      "Powered by direct taps to the nearby mana node, the stone pillars of the "
+      "Arena regulate and channel the flow of mana to our purposes.  Each outer "
+      "pillar may be raised or lowered and all five pillars may be activated or "
+      "deactivated.  Only when all pillars are raised and activated will the mana "
+      "be directed in just the right way to trigger the summoning of an undead horde "
+      "for the Queen's sacrificial ceremonies, as well as raising the central stands to "
+      "a safe height above the ensuing mayhem.\n"
+	   "\xB6"
+      "Note that under normal circumstances, raising and activating all the pillars "
+      "is as simple as pulling all nine control levers (although it should be noted "
+      "that activation levers will only activate that pillar if it is already raised).  "
+      "However, the magicks which "
+      "power the levers seem to be somewhat volatile;  when left unmaintained for "
+      "long periods of time, the effects of the levers seem to cross with each other.  "
+      "It is important, therefore, that you insist that one of the Queen's Order "
+      "continually re-enchant them.  Otherwise, you may wake up one day as one of the "
+      "undead warriors of the arena!\n\n"
+      "(Life as an undead warrior is not the most glamorous of professions, "
+      "I promise you.)"
+
+
+classvars:
+
+   vrName = room_name_OutdoorsG9
+
+   viTeleport_row = 20
+   viTeleport_col = 66
+
+   viTerrain_type = TERRAIN_MOUNTAIN | TERRAIN_MYSTICAL
+
+properties:
+
+   prRoom = room_OutdoorsG9
+   prMusic = OutdoorsG9_music
+   piRoom_num = RID_G9
+
+   piBaseLight = LIGHT_NICE
+   piOutside_factor = 8
+
+   piDirectional_percent = DIRECTIONAL_PERCENT_OUTDOORS
+
+   piGen_time = 100000
+   piGen_percent = 80
+
+   piInit_count_min = 2
+   piInit_count_max = 9
+
+   piMonster_count_max = 6 % temporarily reduced from 12
+
+   poPlatform = $
+   poLedgeN = $
+   poLedgeS = $
+   poCenterSpire = $
+   plOuterSpires = $
+   poSkellyCubbyholes = $
+
+   pbCenterLit = FALSE
+   pbNWLit = FALSE
+   pbSWLit = FALSE
+   pbSELit = FALSE
+   pbNELit = FALSE
+
+   ptResetPuzzle = $
+   ptActivateLevers = $
+
+   % Custom: the puzzle solves itself every piElevatorAutoCycleSec seconds (util/settings.kod), if nobody is working on it.
+   ptAutoCycle = $
+   piAutoElapsed = 0
+
+   % Floor levers
+   poCenterLever = $
+   poNWLever = $
+   poSELever = $
+   poSWLever = $
+   poNELever = $
+
+   plSkellyGenPoints = $
+
+messages:
+
+   Constructed()
+   {
+      local oMovingSpire;
+
+      plMonsters = [ [&Orc, 80], [&DeathSpider, 20] ];
+      
+      plGenerators = [ [10, 44], [25, 47], [29, 58], [22, 63], [14, 68],
+		                 [19,  6], [25, 11], [35, 12], [35, 23], [18, 20],
+		                 [ 9, 18], [13, 24], [ 8, 31], [24, 28], [14, 38],
+		                 [30, 35], [44, 39], [44, 49], [44, 61]
+		               ];
+
+		plSkellyGenPoints = [ [ 5, 48], [ 6, 48], [ 7, 48],
+		                      [13, 72], [13, 73], [13, 74],
+		                      [33, 65], [34, 65], [35, 65],
+		                      [32, 47], [33, 47], [33, 47]
+	                       ];
+
+      poPlatform = Create(&MovingSector,#sectorroom=self,#sectorID=SECTOR_PLATFORM,
+                          #upH=SECTOR_PLATFORM_UP,#downH=SECTOR_PLATFORM_DN,
+                          #surface=ANIMATE_FLOOR_LIFT,#state=SECTOR_DN,
+                          #upspeed=G9_UP_SPEED,#downspeed=G9_DN_SPEED,#toggletime=0,
+                          #movesound=G9_platform_sound);
+
+      poLedgeN = Create(&MovingSector,#sectorroom=self,#sectorID=SECTOR_LEDGE_N,
+                        #upH=SECTOR_LEDGE_N_UP,#downH=SECTOR_LEDGE_N_DN,
+                        #surface=ANIMATE_FLOOR_LIFT,#state=SECTOR_UP,
+                        #upspeed=G9_UP_SPEED,#downspeed=G9_DN_SPEED,#toggletime=0);
+
+      poLedgeS = Create(&MovingSector,#sectorroom=self,#sectorID=SECTOR_LEDGE_S,
+                        #upH=SECTOR_LEDGE_S_UP,#downH=SECTOR_LEDGE_S_DN,
+                        #surface=ANIMATE_FLOOR_LIFT,#state=SECTOR_DN,
+                        #upspeed=G9_UP_SPEED,#downspeed=G9_DN_SPEED,#toggletime=0);
+
+      poCenterSpire = Create(&MovingSector,#sectorroom=self,#sectorID=SECTOR_SPIRE_CENTER,
+                             #upH=SECTOR_SPIRE_CENTER_UP,#downH=SECTOR_PLATFORM_DN,
+                             #surface=ANIMATE_FLOOR_LIFT,#state=SECTOR_DN,
+                             #upspeed=G9_UP_SPEED,#downspeed=G9_DN_SPEED,#toggletime=0,#movesound=G9_door_sound);
+
+      poSkellyCubbyholes = Create(&MovingSector,#sectorroom=self,#sectorID=SECTOR_CUBBYHOLES,
+                                  #upH=SECTOR_CUBBYHOLES_UP,#downH=SECTOR_CUBBYHOLES_DN,
+                                  #surface=ANIMATE_CEILING_LIFT,#state=SECTOR_DN,
+                                  #upspeed=G9_UP_SPEED,#downspeed=G9_DN_SPEED,#toggletime=0);
+
+      plOuterSpires = $;
+
+      oMovingSpire = Create(&MovingSector,#sectorroom=self,#sectorID=SECTOR_SPIRE_NE,
+                            #upH=SECTOR_SPIRE_UP,#downH=SECTOR_SPIRE_DN,
+                            #surface=ANIMATE_FLOOR_LIFT,#state=SECTOR_DN,
+                            #upspeed=G9_UP_SPEED,#downspeed=G9_DN_SPEED,#toggletime=0);
+      plOuterSpires = cons(oMovingSpire, plOuterSpires);
+
+      oMovingSpire = Create(&MovingSector,#sectorroom=self,#sectorID=SECTOR_SPIRE_SE,
+                            #upH=SECTOR_SPIRE_UP,#downH=SECTOR_SPIRE_DN,
+                            #surface=ANIMATE_FLOOR_LIFT,#state=SECTOR_DN,
+                            #upspeed=G9_UP_SPEED,#downspeed=G9_DN_SPEED,#toggletime=0);
+      plOuterSpires = cons(oMovingSpire, plOuterSpires);
+
+      oMovingSpire = Create(&MovingSector,#sectorroom=self,#sectorID=SECTOR_SPIRE_SW,
+                            #upH=SECTOR_SPIRE_UP,#downH=SECTOR_SPIRE_DN,
+                            #surface=ANIMATE_FLOOR_LIFT,#state=SECTOR_DN,
+                            #upspeed=G9_UP_SPEED,#downspeed=G9_DN_SPEED,#toggletime=0);
+      plOuterSpires = cons(oMovingSpire, plOuterSpires);
+
+      oMovingSpire = Create(&MovingSector,#sectorroom=self,#sectorID=SECTOR_SPIRE_NW,
+                            #upH=SECTOR_SPIRE_UP,#downH=SECTOR_SPIRE_DN,
+                            #surface=ANIMATE_FLOOR_LIFT,#state=SECTOR_DN,
+                            #upspeed=G9_UP_SPEED,#downspeed=G9_DN_SPEED,#toggletime=0);
+      plOuterSpires = cons(oMovingSpire, plOuterSpires);
+
+      Post(self,@ActivateLevers);
+
+      ptAutoCycle = CreateTimer(self,@AutoCycleTick,30000);
+
+      propagate;
+   }
+
+   CreateStandardExits()
+   {
+      plEdge_exits = $;
+      plEdge_Exits = Cons([LEAVE_EAST, RID_H9, 46, 5, ROTATE_NONE], plEdge_exits);
+      plEdge_Exits = Cons([LEAVE_WEST, RID_TEMPLE_KRAANAN, 46, 41, ROTATE_NONE], plEdge_exits);
+      
+      plEdge_Exits = Cons([LEAVE_NORTH, RID_G8, 46, 48, ROTATE_NONE,COL_IS_GREATER_THAN,20], plEdge_exits);
+      plEdge_Exits = Cons([LEAVE_NORTH, RID_G8, 46, 18, ROTATE_NONE,COL_IS_LESS_THAN,21], plEdge_exits);
+
+      return;      
+   }
+
+   CreateStandardObjects()
+   {
+      local oLever;
+
+      % Create the mana node
+      Send(self,@NewHold,#what=Create(&ManaNode,#node_num=NODE_g9),
+           #new_row=52,#new_col=30,#fine_row=0,#fine_col=48,#new_angle=ANGLE_WEST);
+
+      % Create the book pedestal
+      Send(self,@NewHold,#what=Create(&BookPedestal,#name=G9_tome_name,#text=G9_tome_text),
+         #new_row=1,#new_col=60,#fine_row=48,#fine_col=16,#new_angle=ANGLE_SOUTH_EAST);
+
+      % Note: The necro levers are non-functional and present for historical purposes.
+      %       The levers are not needed to solve the puzzle. Instead, the player must
+      %       use the platform levers raise the platform.
+
+      % Create the center necro lever
+      oLever = Create(&Lever,#description=G9_center_lever_desc,#icon=G9_lever_icon,#range=2);
+      Send(self,@NewHold,#what=oLever,#new_row=3,#new_col=60,
+         #fine_row=15,#fine_col=16,#new_angle=ANGLE_NORTH);
+
+      % Create the first set of necro levers
+      oLever = Create(&Lever,#description=G9_outer1_lever_desc,#icon=G9_lever_icon,#range=2);
+      Send(self,@NewHold,#what=oLever,#new_row=3,#new_col=59,
+         #fine_row=0,#fine_col=49,#new_angle=ANGLE_EAST);
+
+      oLever = Create(&Lever,#description=G9_outer1_lever_desc,#icon=G9_lever_icon,#range=2);
+      Send(self,@NewHold,#what=oLever,#new_row=2,#new_col=59,
+         #fine_row=32,#fine_col=49,#new_angle=ANGLE_EAST);
+
+      oLever = Create(&Lever,#description=G9_outer1_lever_desc,#icon=G9_lever_icon,#range=2);
+      Send(self,@NewHold,#what=oLever,#new_row=2,#new_col=59,
+         #fine_row=0,#fine_col=49,#new_angle=ANGLE_EAST);
+
+      oLever = Create(&Lever,#description=G9_outer1_lever_desc,#icon=G9_lever_icon,#range=2);
+      Send(self,@NewHold,#what=oLever,#new_row=1,#new_col=59,
+         #fine_row=32,#fine_col=49,#new_angle=ANGLE_EAST);
+           
+      % Create the second set of necro levers
+      oLever = Create(&Lever,#description=G9_outer2_lever_desc,#icon=G9_lever_icon,#range=2);
+      Send(self,@NewHold,#what=oLever,#new_row=1,#new_col=60,
+         #fine_row=17,#fine_col=0,#new_angle=ANGLE_SOUTH);           
+
+      oLever = Create(&Lever,#description=G9_outer2_lever_desc,#icon=G9_lever_icon,#range=2);
+      Send(self,@NewHold,#what=oLever,#new_row=1,#new_col=60,
+         #fine_row=17,#fine_col=32,#new_angle=ANGLE_SOUTH);         
+
+      oLever = Create(&Lever,#description=G9_outer2_lever_desc,#icon=G9_lever_icon,#range=2);
+      Send(self,@NewHold,#what=oLever,#new_row=1,#new_col=61,
+         #fine_row=17,#fine_col=0,#new_angle=ANGLE_SOUTH);           
+
+      oLever = Create(&Lever,#description=G9_outer2_lever_desc,#icon=G9_lever_icon,#range=2);
+      Send(self,@NewHold,#what=oLever,#new_row=1,#new_col=61,
+         #fine_row=17,#fine_col=32,#new_angle=ANGLE_SOUTH);
+      
+
+      % Create platform levers
+      % Note: The platform levers are the current solution to the puzzle.
+
+      poCenterLever = Create(&Lever,#description=G9_floor_lever_desc,#range=1);
+      Send(self,@NewHold,#what=poCenterLever,#new_row=21,#new_col=55,#fine_row=30,#fine_col=30);
+      
+      poNWLever = Create(&Lever,#description=G9_floor_lever_desc,#range=1);
+      Send(self,@NewHold,#what=poNWLever,#new_row=16,#new_col=51,#fine_row=0,#fine_col=0);
+      
+      poNELever = Create(&Lever,#description=G9_floor_lever_desc,#range=1);
+      Send(self,@NewHold,#what=poNELever,#new_row=16,#new_col=60,#fine_row=0,#fine_col=0);
+
+      poSWLever = Create(&Lever,#description=G9_floor_lever_desc,#range=1);
+      Send(self,@NewHold,#what=poSWLever,#new_row=25,#new_col=51,#fine_row=0,#fine_col=0);
+      
+      poSELever = Create(&Lever,#description=G9_floor_lever_desc,#range=1);
+      Send(self,@NewHold,#what=poSELever,#new_row=25,#new_col=60,#fine_row=0,#fine_col=0);
+
+      propagate;
+   }
+   
+   ReturnPuzzleToInitialState()
+   "Returns levers, lights, and spire to their original state."
+   {
+      ptResetPuzzle = $;
+
+      % Flip the platform levers to their original state
+      Send(self,@ResetLeverStates);
+
+      % Set a timer to "unlock" use of the levers after a short delay
+      ptActivateLevers = CreateTimer(self,@ActivateLevers,PUZZLE_TIMELIMIT);
+
+      % Turn off pillar lights
+      if pbCenterLit
+      {
+         Send(self,@ToggleCenterLight);
+      }
+
+      if pbNWLit
+      {
+         Send(self,@ToggleNWLight);
+      }
+
+      if pbSWLit
+      {
+         Send(self,@ToggleSWLight);
+      }
+
+      if pbSELit
+      {
+         Send(self,@ToggleSELight);
+      }
+
+      if pbNELit
+      {
+         Send(self,@ToggleNELight);
+      }
+
+      % Reset sector animations
+      Send(poCenterSpire,@MoveDown);
+      Send(Nth(plOuterSpires,1),@MoveDown);
+      Send(Nth(plOuterSpires,2),@MoveDown);
+      Send(Nth(plOuterSpires,3),@MoveDown);
+      Send(Nth(plOuterSpires,4),@MoveDown);
+      Send(poPlatform,@MoveDown);
+      Send(poLedgeN,@MoveUp);
+      Send(poLedgeS,@MoveDown);
+      Send(poSkellyCubbyholes,@MoveDown);
+
+      return;
+   }
+
+   ResetLeverStates()
+   "Resets the state of the levers to their original (up) position."
+   {
+      if Send(poCenterLever,@GetState) = LEVER_DOWN
+      {
+         Send(poCenterLever,@SwitchLever);
+      }
+
+      if Send(poNWLever,@GetState) = LEVER_DOWN
+      {
+         Send(poNWLever,@SwitchLever);
+      }
+
+      if Send(poNELever,@GetState) = LEVER_DOWN
+      {
+         Send(poNELever,@SwitchLever);
+      }
+
+      if Send(poSWLever,@GetState) = LEVER_DOWN
+      {
+         Send(poSWLever,@SwitchLever);
+      }
+
+      if Send(poSELever,@GetState) = LEVER_DOWN
+      {
+         Send(poSELever,@SwitchLever);
+      }
+
+      return;
+   }
+
+   ActivateLevers()
+   {
+      ptActivateLevers = $;
+
+      Send(poCenterLever,@SetStuck,#newStuck=FALSE);
+      Send(poNWLever,@SetStuck,#newStuck=TRUE);
+      Send(poNELever,@SetStuck,#newStuck=TRUE);
+      Send(poSWLever,@SetStuck,#newStuck=TRUE);
+      Send(poSELever,@SetStuck,#newStuck=TRUE);
+
+      return;
+   }
+
+   PuzzleSolved()
+   {
+      Send(self,@DeleteTimers);
+
+      ptResetPuzzle = CreateTimer(self,@ReturnPuzzleToInitialState,PUZZLE_TIMELIMIT);
+
+      % Set all levers to stuck
+      Send(poCenterLever,@SetStuck,#newStuck=TRUE);
+      Send(poNWLever,@SetStuck,#newStuck=TRUE);
+      Send(poNELever,@SetStuck,#newStuck=TRUE);
+      Send(poSWLever,@SetStuck,#newStuck=TRUE);
+      Send(poSELever,@SetStuck,#newStuck=TRUE);
+
+      if pbCenterLit
+      {
+         Send(self,@ToggleCenterLight);
+      }
+
+      if pbNWLit
+      {
+         Send(self,@ToggleNWLight);
+      }
+
+      if pbSWLit
+      {
+         Send(self,@ToggleSWLight);
+      }
+
+      if pbSELit
+      {
+         Send(self,@ToggleSELight);
+      }
+
+      if pbNELit
+      {
+         Send(self,@ToggleNELight);
+      }
+
+      % Shake the room
+      Post(self,@Rumble,#duration=5000,#disruption=0);
+
+      Send(poCenterSpire,@MoveUp);
+      Send(Nth(plOuterSpires,1),@MoveDown);
+      Send(Nth(plOuterSpires,2),@MoveDown);
+      Send(Nth(plOuterSpires,3),@MoveDown);
+      Send(Nth(plOuterSpires,4),@MoveDown);
+
+      Send(poPlatform,@MoveUp);
+      Send(poLedgeN,@MoveDown);
+      Send(poLedgeS,@MoveUp);
+
+      Send(self,@GenerateSkellies);
+
+      Send(self,@BroadcastPuzzleSolved);
+
+      return;
+   }
+
+   BroadcastPuzzleSolved()
+   "Notifies rooms and players that the puzzle has been solved."
+   {
+      local i, oRoom, oPlayer;
+      
+      for oRoom in Send(SYS,@GetRooms)
+      {
+         % Skip room if not in Brax
+         if Send(oRoom,@GetRegion) <> RID_BRAX
+         {
+            continue;
+         }
+
+         % Rumble room
+         Send(oRoom,@Rumble,#duration=3000,#disruption=0);
+
+         % Send a message to all players in the room
+         for i in Send(oRoom,@GetHolderActive)
+         {
+            oPlayer = Send(oRoom,@HolderExtractObject,#data=i);
+            if IsClass(oPlayer,&Player)
+            {
+               Send(oPlayer,@MsgSendUser,#message_rsc=G9_distant_rumble_msg);
+            }
+         }
+      }    
+
+      return; 
+   }
+
+   GenerateSkellies()
+   "Admin supported"
+   {
+      local numSkellies, oSkelly, iSkellyLocation;
+      % first count how many are already here
+      numSkellies = (Send(self,@CouNtholdingHowMany,#class=&Skeleton)
+                    + Send(self,@CouNtholdingHowMany,#class=&BatteredSkeleton));
+
+      % now allow us 6 holdovers
+      numSkellies = numSkellies - 6;
+
+      % then decide how many new ones to gen
+      if numSkellies <> $ and numSkellies > 0
+      {
+         numSkellies = 12 - numSkellies;
+      }
+      else
+      {
+         numSkellies = 12;
+      }
+
+      if (numSkellies < 1) OR (plSkellyGenPoints = $)
+      {
+         return FALSE;
+      }
+
+      Send(poSkellyCubbyholes,@MoveUp);
+
+      while numSkellies > 0
+      {
+         numSkellies = numSkellies - 1;
+         if random(1,2) = 1
+         {
+            oSkelly = Create(&Skeleton);
+         }
+         else
+         {
+            oSkelly = Create(&BatteredSkeleton);
+         }
+
+         iSkellyLocation = random(1,length(plSkellyGenPoints));
+
+         Send(self,@NewHold,#what=oSkelly,
+               #new_row=Nth(Nth(plSkellyGenPoints,iSkellyLocation),1),
+               #new_col=Nth(Nth(plSkellyGenPoints,iSkellyLocation),2) );
+      }
+
+      if ptResetPuzzle = $
+      {
+         ptResetPuzzle = CreateTimer(self,@ReturnPuzzleToInitialState,
+                                              PUZZLE_TIMELIMIT);
+      }
+
+      return TRUE;
+   }
+
+   ToggleCenterLight()
+   {
+      if pbCenterLit
+      {
+         pbCenterLit = FALSE;
+         Send(self,@ChangeTexture,#id=SECTOR_SPIRE_CENTER,#new_texture=SPIRE_OFF,
+              #flags=CTF_BELOWWALL);
+      }
+      else
+      {
+         pbCenterLit = TRUE;
+         Send(self,@ChangeTexture,#id=SECTOR_SPIRE_CENTER,#new_texture=SPIRE_ON,
+              #flags=CTF_BELOWWALL);
+      }
+
+      return;
+   }
+   
+   ToggleNWLight()
+   {
+      if pbNWLit
+      {
+         pbNWLit = FALSE;
+         Send(self,@ChangeTexture,#id=SECTOR_SPIRE_NW,#new_texture=SPIRE_OFF,
+              #flags=CTF_BELOWWALL);
+      }
+      else
+      {
+         pbNWLit = TRUE;
+         Send(self,@ChangeTexture,#id=SECTOR_SPIRE_NW,#new_texture=SPIRE_ON,
+              #flags=CTF_BELOWWALL);
+      }
+
+      return;
+   }
+   
+   ToggleSWLight()
+   {
+      if pbSWLit
+      {
+         pbSWLit = FALSE;
+         Send(self,@ChangeTexture,#id=SECTOR_SPIRE_SW,#new_texture=SPIRE_OFF,
+              #flags=CTF_BELOWWALL);
+      }
+      else
+      {
+         pbSWLit = TRUE;
+         Send(self,@ChangeTexture,#id=SECTOR_SPIRE_SW,#new_texture=SPIRE_ON,
+              #flags=CTF_BELOWWALL);
+      }
+
+      return;
+   }
+   
+   ToggleSELight()
+   {
+      if pbSELit
+      {
+         pbSELit = FALSE;
+         Send(self,@ChangeTexture,#id=SECTOR_SPIRE_SE,#new_texture=SPIRE_OFF,
+              #flags=CTF_BELOWWALL);
+      }
+      else
+      {
+         pbSELit = TRUE;
+         Send(self,@ChangeTexture,#id=SECTOR_SPIRE_SE,#new_texture=SPIRE_ON,
+              #flags=CTF_BELOWWALL);
+      }
+
+      return;
+   }
+   
+   ToggleNELight()
+   {
+      if pbNELit
+      {
+         pbNELit = FALSE;
+         Send(self,@ChangeTexture,#id=SECTOR_SPIRE_NE,#new_texture=SPIRE_OFF,
+              #flags=CTF_BELOWWALL);
+      }
+      else
+      {
+         pbNELit = TRUE;
+         Send(self,@ChangeTexture,#id=SECTOR_SPIRE_NE,#new_texture=SPIRE_ON,
+              #flags=CTF_BELOWWALL);
+      }
+
+      return;
+   }
+
+   SomethingChanged(what = $)
+   {
+      if isClass(what,&Lever)
+      {
+         if Send(what,@GetRow) = 21
+         {
+            if Send(what,@GetCol) = 55
+            {
+               Send(self,@ToggleCenterLight);
+               Send(poCenterSpire,@MoveUp);
+               Send(Nth(plOuterSpires,1),@Toggle,#toggleback=FALSE);
+               Send(Nth(plOuterSpires,2),@Toggle,#toggleback=FALSE);
+               Send(Nth(plOuterSpires,3),@Toggle,#toggleback=FALSE);
+               Send(Nth(plOuterSpires,4),@Toggle,#toggleback=FALSE);
+
+               if Send(poCenterLever,@GetState) = LEVER_UP
+               {
+                  Send(poNWLever,@SetStuck,#newStuck=TRUE);
+                  Send(poNELever,@SetStuck,#newStuck=TRUE);
+                  Send(poSWLever,@SetStuck,#newStuck=TRUE);
+                  Send(poSELever,@SetStuck,#newStuck=TRUE);
+               }
+               else
+               {
+                  Send(poNWLever,@SetStuck,#newStuck=FALSE);
+                  Send(poNELever,@SetStuck,#newStuck=FALSE);
+                  Send(poSWLever,@SetStuck,#newStuck=FALSE);
+                  Send(poSELever,@SetStuck,#newStuck=FALSE);
+               }
+            }
+         }
+         else
+         {
+            if Send(what,@GetRow) = 16
+            {
+               if Send(what,@GetCol) = 51
+               {
+                  % NW pillar
+                  Send(self,@ToggleNWLight);
+               }
+               else
+               {
+                  % NE pillar
+                  Send(self,@ToggleNELight);
+               }
+            }
+            else
+            {
+               if Send(what,@GetCol) = 51
+               {
+                  % SW pillar
+                  Send(self,@ToggleSWLight);
+               }
+               else
+               {
+                  % SE pillar
+                  Send(self,@ToggleSELight);
+               }
+            }
+         }
+
+         Send(self,@Touched);
+
+         if pbCenterLit AND pbNWLit AND pbSWLit AND pbSELit AND pbNELit
+            AND (Send(Nth(plOuterSpires,1),@GetState)=SECTOR_UP)
+            AND (Send(Nth(plOuterSpires,2),@GetState)=SECTOR_UP)
+            AND (Send(Nth(plOuterSpires,3),@GetState)=SECTOR_UP)
+            AND (Send(Nth(plOuterSpires,4),@GetState)=SECTOR_UP)
+         {
+            Send(self,@PuzzleSolved);
+         }
+      }
+   
+      propagate;
+   }
+
+   Touched()
+   {
+      if ptResetPuzzle <> $
+      {
+         DeleteTimer(ptResetPuzzle);
+         ptResetPuzzle = $;
+      }
+
+      ptResetPuzzle = CreateTimer(self,@ReturnPuzzleToInitialState,LEVER_TOUCHEDTIMELIMIT);
+
+      return;
+   }
+
+   NewHold(what = $)
+   "Rooms loaded from a saved game are not constructed again, so the auto-solve timer is started here if it is not running."
+   {
+      if ptAutoCycle = $
+      {
+         ptAutoCycle = CreateTimer(self,@AutoCycleTick,30000);
+      }
+
+      propagate;
+   }
+
+   AutoCycleTick()
+   "Every 30 seconds: solves the puzzle by itself once the configured time has passed and no player is in the middle of it."
+   {
+      local iInterval;
+
+      ptAutoCycle = CreateTimer(self,@AutoCycleTick,30000);
+
+      iInterval = Send(Send(SYS,@GetSettings),@GetElevatorAutoCycleSec);
+      if iInterval <= 0
+      {
+         piAutoElapsed = 0;
+
+         return;
+      }
+
+      piAutoElapsed = piAutoElapsed + 30;
+      if piAutoElapsed >= iInterval AND ptResetPuzzle = $
+      {
+         piAutoElapsed = 0;
+         Send(self,@PuzzleSolved);
+      }
+
+      return;
+   }
+
+   AdminResetPuzzle()
+   {
+      Send(self,@DeleteTimers);
+
+      ptResetPuzzle = CreateTimer(self,@ReturnPuzzleToInitialState,10);
+
+      return;
+   }
+   
+   Delete()
+   {
+      if ptAutoCycle <> $
+      {
+         DeleteTimer(ptAutoCycle);
+         ptAutoCycle = $;
+      }
+
+      Send(self,@DeleteTimers);
+
+      if poPlatform <> $
+      {
+         Send(poPlatform,@Delete);
+      }
+
+      if poLedgeN <> $
+      {
+         Send(poLedgeN,@Delete);
+      }
+
+      if poLedgeS <> $
+      {
+         Send(poLedgeS,@Delete);
+      }
+
+      if poCenterSpire <> $
+      {
+         Send(poCenterSpire,@Delete);
+      }
+
+      if plOuterSpires <> $
+      {
+         Send(Nth(plOuterSpires,1),@Delete);
+         Send(Nth(plOuterSpires,2),@Delete);
+         Send(Nth(plOuterSpires,3),@Delete);
+         Send(Nth(plOuterSpires,4),@Delete);
+      }
+
+      if poSkellyCubbyholes <> $
+      {
+         Send(poSkellyCubbyholes,@Delete);
+      }
+
+      poPlatform = $;
+      poLedgeN = $;
+      poLedgeS = $;
+      poCenterSpire = $;
+      plOuterSpires = $;
+      poSkellyCubbyholes = $;
+
+      poCenterLever = $;
+      poNWLever = $;
+      poNELever = $;
+      poSWLever = $;
+      poSELever = $;
+      
+      propagate;
+   }
+
+   DeleteTimers()
+   {
+      if ptResetPuzzle <> $
+      {
+         DeleteTimer(ptResetPuzzle);
+         ptResetPuzzle = $;
+      }
+
+      if ptActivateLevers <> $
+      {
+         DeleteTimer(ptActivateLevers);
+         ptActivateLevers = $;
+      }
+
+      return;
+   }
+
+end
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

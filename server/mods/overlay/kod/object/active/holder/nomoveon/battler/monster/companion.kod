@@ -1,0 +1,972 @@
+% Custom: a companion bot (our server).  A humanoid fighter (FactionTroop body, equipment and animation) that follows its master, a player,
+% fights what the master fights and lives only while it is in the master's group.  Strength comes from the master's effective level (ECL).
+% Roles: CompanionMage, CompanionHealer, CompanionTank (subclasses).
+
+Companion is FactionTroop
+
+constants:
+
+   include blakston.khd
+   include protocol.khd
+
+   COMPANION_THINK_MS = 1800
+
+resources:
+
+   companion_name_rsc = "companion"
+   companion_desc_rsc = "A temporary companion who fights at the side of its master."
+   companion_dead_name_rsc = "dead companion"
+
+   companion_m_aldric = "Aldric"
+   companion_m_gerhard = "Gerhard"
+   companion_m_lorenzo = "Lorenzo"
+   companion_m_ambrose = "Ambrose"
+   companion_m_josiah = "Josiah"
+   companion_m_silas = "Silas"
+   companion_m_ezekiel = "Ezekiel"
+   companion_m_reynard = "Reynard"
+   companion_m_tobias = "Tobias"
+   companion_m_matthias = "Matthias"
+   companion_m_cosimo = "Cosimo"
+   companion_m_benedict = "Benedict"
+   companion_m_hartmann = "Hartmann"
+   companion_m_giles = "Giles"
+   companion_m_lucian = "Lucian"
+   companion_m_thaddeus = "Thaddeus"
+   companion_m_barnabas = "Barnabas"
+   companion_m_elias = "Elias"
+   companion_m_amadeus = "Amadeus"
+   companion_m_piers = "Piers"
+   companion_m_everard = "Everard"
+   companion_m_caspar = "Caspar"
+   companion_m_jeremiah = "Jeremiah"
+   companion_m_gideon = "Gideon"
+   companion_f_isolde = "Isolde"
+   companion_f_beatrix = "Beatrix"
+   companion_f_marguerite = "Marguerite"
+   companion_f_abigail = "Abigail"
+   companion_f_temperance = "Temperance"
+   companion_f_prudence = "Prudence"
+   companion_f_hester = "Hester"
+   companion_f_seraphina = "Seraphina"
+   companion_f_lucrezia = "Lucrezia"
+   companion_f_rosalind = "Rosalind"
+   companion_f_philippa = "Philippa"
+   companion_f_constance = "Constance"
+   companion_f_adelheid = "Adelheid"
+   companion_f_eleanor = "Eleanor"
+   companion_f_cecily = "Cecily"
+   companion_f_mercy = "Mercy"
+   companion_f_verity = "Verity"
+   companion_f_griselda = "Griselda"
+   companion_f_odette = "Odette"
+   companion_f_perpetua = "Perpetua"
+   companion_f_tabitha = "Tabitha"
+   companion_f_clarice = "Clarice"
+   companion_f_ysolde = "Ysolde"
+   companion_f_patience = "Patience"
+
+classvars:
+
+   vrDesc = companion_desc_rsc
+   vrDead_name = companion_dead_name_rsc
+
+   viDefault_behavior = AI_FIGHT_MONSTERS | AI_MOVE_FOLLOW_MASTER
+   viTreasure_type = TID_NONE
+
+   % COMPANION_ROLE_*
+   viRole = 0
+
+properties:
+
+   vrName = companion_name_rsc
+   viChanceFemale = 50
+
+   poGroup = $
+   ptThink = $
+   piEcl = 1
+   piCompanionHp = 20
+   plCooldown = 0
+
+   % 0 = assist (fight with the group), 1 = passive (follow only; healers still heal and buff)
+   piStance = 0
+
+   piLastDist = 0
+   piLastRow = 0
+   piLastCol = 0
+   piCombatStuck = 0
+   poIgnoreTarget = $
+   piIgnoreTicks = 0
+   piMana = 20
+   % highest spell level per school: Kraanan, Shalille, Qor, Faren, Jala (set from the owner's learnable levels)
+   plSpellCaps = $
+   piMaxMana = 20
+   piStuck = 0
+
+messages:
+
+   Constructor(oMaster = $, iEcl = 1, iHp = 20)
+   {
+      piEcl = bound(iEcl,1,50);
+      piCompanionHp = bound(iHp,10,200);
+      piMaxMana = bound(Send(oMaster,@GetMaxMana),20,500);
+      piMana = piMaxMana;
+      poMaster = oMaster;
+      vbSummoned = TRUE;
+
+      % choose the gender here so that the name always fits the body
+      if random(1,100) <= 50
+      {
+         viChanceFemale = 101;
+      }
+      else
+      {
+         viChanceFemale = 0;
+      }
+      vrName = Send(self,@PickName,#bFemale=(viChanceFemale = 101));
+
+      % fighting values from the effective level
+      piOffense = 100 + (piEcl * 10);
+      piDefense = 100 + (piEcl * 10);
+      piMinDamage = 1 + (piEcl / 10);
+      piMaxDamage = 3 + (piEcl / 4);
+      viLevel = piCompanionHp;
+      viDifficulty = 4;
+      Send(self,@AdjustStats);
+
+      ptThink = CreateTimer(self,@Think,COMPANION_THINK_MS);
+
+      propagate;
+   }
+
+   Delete()
+   {
+      if ptThink <> $
+      {
+         DeleteTimer(ptThink);
+         ptThink = $;
+      }
+
+      if poGroup <> $
+      {
+         Send(poGroup,@RemoveMember,#what=self);
+      }
+
+      propagate;
+   }
+
+   PickName(bFemale = FALSE)
+   "A first name from the pool for this gender that none of the master's other companions has."
+   {
+      local lNames, i, j, rName, bTaken, oGroup;
+
+      if bFemale
+      {
+         lNames = [ companion_f_isolde,
+                 companion_f_beatrix,
+                 companion_f_marguerite,
+                 companion_f_abigail,
+                 companion_f_temperance,
+                 companion_f_prudence,
+                 companion_f_hester,
+                 companion_f_seraphina,
+                 companion_f_lucrezia,
+                 companion_f_rosalind,
+                 companion_f_philippa,
+                 companion_f_constance,
+                 companion_f_adelheid,
+                 companion_f_eleanor,
+                 companion_f_cecily,
+                 companion_f_mercy,
+                 companion_f_verity,
+                 companion_f_griselda,
+                 companion_f_odette,
+                 companion_f_perpetua,
+                 companion_f_tabitha,
+                 companion_f_clarice,
+                 companion_f_ysolde,
+                 companion_f_patience ];
+      }
+      else
+      {
+         lNames = [ companion_m_aldric,
+                 companion_m_gerhard,
+                 companion_m_lorenzo,
+                 companion_m_ambrose,
+                 companion_m_josiah,
+                 companion_m_silas,
+                 companion_m_ezekiel,
+                 companion_m_reynard,
+                 companion_m_tobias,
+                 companion_m_matthias,
+                 companion_m_cosimo,
+                 companion_m_benedict,
+                 companion_m_hartmann,
+                 companion_m_giles,
+                 companion_m_lucian,
+                 companion_m_thaddeus,
+                 companion_m_barnabas,
+                 companion_m_elias,
+                 companion_m_amadeus,
+                 companion_m_piers,
+                 companion_m_everard,
+                 companion_m_caspar,
+                 companion_m_jeremiah,
+                 companion_m_gideon ];
+      }
+
+      rName = Nth(lNames,random(1,Length(lNames)));
+      oGroup = $;
+      if poMaster <> $
+      {
+         oGroup = Send(poMaster,@GetGroup);
+      }
+      if oGroup = $
+      {
+         return rName;
+      }
+
+      % up to 10 tries to find a free name
+      for j in [1,2,3,4,5,6,7,8,9,10]
+      {
+         bTaken = FALSE;
+         for i in Send(oGroup,@GetMembers)
+         {
+            if IsClass(i,&Companion) AND Send(i,@GetTrueName) = rName
+            {
+               bTaken = TRUE;
+            }
+         }
+         if NOT bTaken
+         {
+            return rName;
+         }
+         rName = Nth(lNames,random(1,Length(lNames)));
+      }
+
+      return rName;
+   }
+
+   % a companion has a first name: no article ("Mercy", not "the Mercy")
+   LookupArticle(article_num = $)
+   {
+      return object_article_none_rsc;
+   }
+
+   LookupCapitalArticle(article_num = $)
+   {
+      return object_article_none_rsc;
+   }
+
+   AdjustStats()
+   "Subclasses change the fighting values set from the effective level here."
+   {
+      return;
+   }
+
+   GetOffense(what = $, stroke_obj = $)
+   "To-hit is relative to what we fight, so low-level bots are not hopeless against tough monsters: about 50 percent at effective level 1 rising to 80 percent at 50 (the plain formula gave 20 percent against a mummy)."
+   {
+      local iDef, iOff;
+
+      iOff = piOffense;
+      if what <> $
+      {
+         iDef = Send(what,@GetDefense,#what=self,#stroke_obj=stroke_obj);
+         if iDef <> $ AND iDef > 0
+         {
+            iOff = (iDef * (50 + ((piEcl * 3) / 5))) / 55;
+         }
+      }
+
+      return Bound(iOff,1,1500);
+   }
+
+   % --- the monster hit points are the master's hit points, no random spread
+   GetMaxHitPoints()
+   {
+      return piCompanionHp;
+   }
+
+   Fuzzy(num = 0, scale = 4)
+   {
+      return num;
+   }
+
+   % --- no loot, no gender / equipment randomness: subclasses choose their equipment
+   CreateTreasure(who = $, corpse = $)
+   {
+      return;
+   }
+
+   SetEquipment()
+   {
+      return;
+   }
+
+   SetShield()
+   {
+      return;
+   }
+
+   SetHair()
+   "(called while the troop body is built) Companions are silent: no soldier grunts, swishes or death cries."
+   {
+      vrSound_hit = $;
+      vrSound_miss = $;
+      vrSound_aware = $;
+      vrSound_death = $;
+
+      return;
+   }
+
+   GetObjectFlags()
+   "A companion is not a legal target for its group (no 'attackable' flag); monsters still fight it through their own AI."
+   {
+      return MOVEON_NO | piDrawfx;
+   }
+
+   % --- group support (the same messages as a User, see user.kod)
+   SetGroup(oGroup = $)
+   {
+      poGroup = oGroup;
+
+      return;
+   }
+
+   GetGroup()
+   {
+      return poGroup;
+   }
+
+   GetGroupKind()
+   {
+      return 2;
+   }
+
+   GetGroupRole()
+   {
+      return viRole;
+   }
+
+   GetGroupHealth()
+   {
+      return bound(piHit_points,0,32000);
+   }
+
+   GetGroupMaxHealth()
+   {
+      return bound(piMax_hit_points,1,32000);
+   }
+
+   GetGroupMana()
+   {
+      return bound(piMana,0,32000);
+   }
+
+   GetGroupMaxMana()
+   {
+      return bound(piMaxMana,0,32000);
+   }
+
+   % spells that modify combat (Bless, Magic Shield ...) call these on their target; companions keep their own fixed values
+   AddAttackModifier(what = $)
+   {
+      return;
+   }
+
+   RemoveAttackModifier(what = $)
+   {
+      return;
+   }
+
+   AddDefenseModifier(what = $)
+   {
+      return;
+   }
+
+   RemoveDefenseModifier(what = $)
+   {
+      return;
+   }
+
+   FindUsing(class = $)
+   "Spell code asks casters what they wear; companions use no magic equipment."
+   {
+      return $;
+   }
+
+   SetSpellCaps(lCaps = $)
+   {
+      if lCaps <> $
+      {
+         plSpellCaps = lCaps;
+      }
+
+      return;
+   }
+
+   GetSpellCap(oSpell = $)
+   "Highest level this companion may use in the spell's school (Jala and other schools: 2)."
+   {
+      local iSch;
+
+      if plSpellCaps = $
+      {
+         return 2;
+      }
+
+      iSch = Send(oSpell,@GetSchool);
+      if iSch = SS_KRAANAN { return Nth(plSpellCaps,1); }
+      if iSch = SS_SHALILLE { return Nth(plSpellCaps,2); }
+      if iSch = SS_QOR { return Nth(plSpellCaps,3); }
+      if iSch = SS_FAREN { return Nth(plSpellCaps,4); }
+      if iSch = SS_JALA { return Nth(plSpellCaps,5); }
+
+      return 2;
+   }
+
+   GetMaxSpellLevel()
+   "Spell levels a companion may use, from the effective level of its master (1-10: 1-2, 11-25: up to 4, 26-40: up to 5, 41+: 6)."
+   {
+      if piEcl <= 10
+      {
+         return 2;
+      }
+      if piEcl <= 25
+      {
+         return 4;
+      }
+      if piEcl <= 40
+      {
+         return 5;
+      }
+
+      return 6;
+   }
+
+   SendGroupState()
+   {
+      return;
+   }
+
+   CompanionLeftGroup()
+   {
+      poGroup = $;
+      Send(self,@Delete);
+
+      return;
+   }
+
+   GetMasterUser()
+   {
+      return poMaster;
+   }
+
+   % --- the thinking loop (spells, healing); movement and melee come from the normal monster AI
+   Think()
+   {
+      ptThink = CreateTimer(self,@Think,COMPANION_THINK_MS);
+
+      if poMaster = $ OR poOwner = $
+      {
+         return;
+      }
+
+      % follow the master into another room
+      if Send(poMaster,@GetOwner) <> poOwner
+      {
+         Send(self,@GotoMaster);
+
+         return;
+      }
+
+      Send(self,@RegenerateCompanion);
+
+      % a target that vanished (deleted, left the room, dead) must not keep us frozen in the attack state
+      if poTarget <> $
+      {
+         if NOT IsObject(poTarget) OR Send(poTarget,@GetOwner) <> poOwner
+            OR (IsClass(poTarget,&Battler) AND Send(poTarget,@GetHealthPercent) <= 0)
+         {
+            poTarget = $;
+            Send(self,@EnterStateWait,#actnow=TRUE);
+         }
+      }
+
+      % chasing something it cannot get to (wall, pillar, no path): give up on it for a while and rejoin the master
+      if piIgnoreTicks > 0
+      {
+         piIgnoreTicks = piIgnoreTicks - 1;
+      }
+      if poTarget <> $ AND NOT Send(self,@CanReach,#what=poTarget) AND piRow = piLastRow AND piCol = piLastCol
+      {
+         piCombatStuck = piCombatStuck + 1;
+      }
+      else
+      {
+         piCombatStuck = 0;
+      }
+      piLastRow = piRow;
+      piLastCol = piCol;
+      if piCombatStuck >= 3
+      {
+         piCombatStuck = 0;
+         poIgnoreTarget = poTarget;
+         piIgnoreTicks = 12;
+         poTarget = $;
+         Send(self,@EnterStateWait,#actnow=TRUE);
+         Send(poOwner,@SomethingMoved,#what=self,#new_row=Send(poMaster,@GetRow),#new_col=Send(poMaster,@GetCol),
+              #fine_row=Send(poMaster,@GetFineRow),#fine_col=Send(poMaster,@GetFineCol),#speed=0);
+      }
+
+      % do not run off after something far from the master
+      if poTarget <> $ AND Send(poMaster,@SquaredDistanceTo,#what=poTarget) > 400
+      {
+         poIgnoreTarget = poTarget;
+         piIgnoreTicks = 12;
+         poTarget = $;
+         Send(self,@EnterStateWait,#actnow=TRUE);
+      }
+
+      Send(self,@CheckFollow);
+      Send(self,@PickTarget);
+      Send(self,@CompanionAct);
+
+      return;
+   }
+
+   RegenerateCompanion()
+   "Mana comes back slowly; much faster while the master is resting (companions rest with their master)."
+   {
+      local iGain;
+
+      iGain = piMaxMana / 40;
+      if poMaster <> $ AND IsClass(poMaster,&Player) AND Send(poMaster,@IsResting)
+      {
+         iGain = piMaxMana / 8;
+         if piHit_points < piMax_hit_points
+         {
+            piHit_points = bound(piHit_points + (piMax_hit_points / 8),1,piMax_hit_points);
+         }
+      }
+      piMana = bound(piMana + Bound(iGain,1,200),0,piMaxMana);
+
+      return;
+   }
+
+   CheckFollow()
+   "If we are far from the master and not getting closer (blocked by a wall or pillar), or very far away, jump to him."
+   {
+      local iDist, bFar;
+
+      iDist = Send(self,@SquaredDistanceTo,#what=poMaster);
+      bFar = FALSE;
+
+      if poTarget = $ AND iDist > 36 AND iDist >= (piLastDist - 1)
+      {
+         piStuck = piStuck + 1;
+      }
+      else
+      {
+         piStuck = 0;
+      }
+      piLastDist = iDist;
+
+      if iDist > 196 OR piStuck >= 2
+      {
+         bFar = TRUE;
+      }
+
+      if Send(Send(SYS,@GetSettings),@GetCompanionDebug)
+      {
+         Debug("companion",Send(self,@GetTrueName),"dist2",iDist,"stuck",piStuck,"target",poTarget,"state",piState,"stance",piStance,"jump",bFar);
+      }
+
+      if bFar
+      {
+         piStuck = 0;
+         Send(poOwner,@SomethingMoved,#what=self,#new_row=Send(poMaster,@GetRow),#new_col=Send(poMaster,@GetCol),
+              #fine_row=Send(poMaster,@GetFineRow),#fine_col=Send(poMaster,@GetFineCol),#speed=0);
+      }
+
+      return;
+   }
+
+   IsHostileMonster(oMon = $)
+   {
+      if oMon = poIgnoreTarget AND piIgnoreTicks > 0
+      {
+         return FALSE;
+      }
+
+      return (oMon <> $ AND IsClass(oMon,&Monster) AND NOT IsClass(oMon,&Companion)
+              AND NOT (Send(oMon,@GetBehavior) & AI_NPC)
+              AND Send(oMon,@GetOwner) = poOwner);
+   }
+
+   OrderAttack(oTarget = $)
+   "The master tells us to attack his target (or the one he named); with no usable target, the nearest hostile monster to the master."
+   {
+      local i, oObj, oBest, iDist, iBest;
+
+      piStance = 0;
+      Send(self,@SetBehaviorFlag,#flag=AI_NOFIGHT,#value=FALSE);
+
+      if NOT Send(self,@IsHostileMonster,#oMon=oTarget)
+      {
+         oTarget = Send(poMaster,@GetKillTarget);
+      }
+
+      if NOT Send(self,@IsHostileMonster,#oMon=oTarget)
+      {
+         oBest = $;
+         iBest = 144;
+         for i in Send(poOwner,@GetHolderActive)
+         {
+            oObj = Send(poOwner,@HolderExtractObject,#data=i);
+            if Send(self,@IsHostileMonster,#oMon=oObj)
+            {
+               iDist = Send(poMaster,@SquaredDistanceTo,#what=oObj);
+               if iDist <> $ AND iDist < iBest
+               {
+                  iBest = iDist;
+                  oBest = oObj;
+               }
+            }
+         }
+         oTarget = oBest;
+      }
+
+      if Send(Send(SYS,@GetSettings),@GetCompanionDebug)
+      {
+         Debug("companion order attack",Send(self,@GetTrueName),"target",oTarget);
+      }
+
+      if oTarget <> $
+      {
+         Send(self,@EngageTarget,#oTarget=oTarget);
+      }
+
+      return;
+   }
+
+   EnterStateChase(target = $, actnow = TRUE)
+   "While chasing or fighting, the monster AI would walk back to the master whenever he is closer than the target: switch following off."
+   {
+      Send(self,@SetBehaviorFlag,#flag=AI_MOVE_FOLLOW_MASTER,#value=FALSE);
+
+      propagate;
+   }
+
+   EnterStateAttack(target = $, actnow = TRUE)
+   {
+      Send(self,@SetBehaviorFlag,#flag=AI_MOVE_FOLLOW_MASTER,#value=FALSE);
+
+      propagate;
+   }
+
+   EnterStateWait(actnow = FALSE, delay = MOB_MOVE_TIMER_WAIT)
+   {
+      Send(self,@SetBehaviorFlag,#flag=AI_MOVE_FOLLOW_MASTER,#value=TRUE);
+
+      propagate;
+   }
+
+   EnterStateMove(actnow = FALSE)
+   {
+      Send(self,@SetBehaviorFlag,#flag=AI_MOVE_FOLLOW_MASTER,#value=TRUE);
+
+      propagate;
+   }
+
+   EngageTarget(oTarget = $)
+   {
+      Send(self,@TargetSwitch,#what=oTarget,#iHatred=1000);
+      if Send(self,@CanReach,#what=oTarget)
+      {
+         Send(self,@EnterStateAttack,#target=oTarget,#actnow=TRUE);
+      }
+      else
+      {
+         Send(self,@EnterStateChase,#target=oTarget,#actnow=TRUE);
+      }
+
+      return;
+   }
+
+   AssistAgainst(oMob = $)
+   "A monster went for a group member: engage it unless passive or already busy."
+   {
+      if piStance = 0 AND poTarget = $ AND Send(self,@IsHostileMonster,#oMon=oMob)
+      {
+         Send(self,@EngageTarget,#oTarget=oMob);
+      }
+
+      return;
+   }
+
+   SomethingAttacked(what = $, victim = $, use_weapon = $)
+   "A group member (or a companion) is being hit: help against the attacker."
+   {
+      if piStance = 0 AND poTarget = $ AND poGroup <> $ AND victim <> $
+         AND Send(poGroup,@IsMember,#what=victim)
+         AND Send(self,@IsHostileMonster,#oMon=what)
+      {
+         Send(self,@EngageTarget,#oTarget=what);
+      }
+
+      propagate;
+   }
+
+   OrderPassive()
+   {
+      piStance = 1;
+      Send(self,@SetBehaviorFlag,#flag=AI_NOFIGHT,#value=TRUE);
+      Send(self,@EnterStateWait,#actnow=TRUE);
+
+      return;
+   }
+
+   OrderAssist()
+   {
+      piStance = 0;
+      Send(self,@SetBehaviorFlag,#flag=AI_NOFIGHT,#value=FALSE);
+
+      return;
+   }
+
+   MoveToMaster()
+   "Stay close but calm: walk to the master only when more than 3 squares away; when near, stand still, look around now and then, and only step away when standing in the same square as the master or another companion."
+   {
+      local iDist, i;
+
+      if poMaster = $ OR poOwner = $
+      {
+         return FALSE;
+      }
+
+      iDist = Send(self,@SquaredDistanceTo,#what=poMaster);
+      if iDist = $
+      {
+         return FALSE;
+      }
+
+      if iDist > 9
+      {
+         return Send(self,@MoveTowards,#oTarget=poMaster,#face_target=TRUE);
+      }
+
+      % too close: on the master's square, or on another companion's
+      if iDist = 0
+      {
+         return Send(self,@MoveAway,#oTarget=poMaster);
+      }
+      if poGroup <> $
+      {
+         for i in Send(poGroup,@GetMembers)
+         {
+            if i <> self AND IsClass(i,&Companion) AND Send(self,@SquaredDistanceTo,#what=i) = 0
+            {
+               return Send(self,@MoveAway,#oTarget=i);
+            }
+         }
+      }
+
+      % idle: now and then look in a random direction
+      if Random(1,12) = 1
+      {
+         Send(poOwner,@SomethingTurned,#what=self,#new_angle=Random(0,4095));
+      }
+
+      return TRUE;
+   }
+
+   % --- companions keep up with their master: they sprint when he is more than 4 squares away
+   GetMoveTime()
+   {
+      % the monster 'walking effort' throttle (2 x hit points steps) would stop a low-health companion after 40 steps
+      piWalkingEffort = 0;
+
+      if poMaster <> $ AND Send(poMaster,@GetOwner) = poOwner
+         AND Send(self,@SquaredDistanceTo,#what=poMaster) > 16
+      {
+         return 160;
+      }
+
+      return 420;
+   }
+
+   TryAttack(what = $, stroke_obj = $)
+   {
+      if Send(Send(SYS,@GetSettings),@GetCompanionDebug)
+      {
+         Debug("companion TryAttack",Send(self,@GetTrueName),"on",what,"state",piState);
+      }
+
+      propagate;
+   }
+
+   GetAttackTime()
+   "Companions swing about every 1.5 seconds (the plain monster formula is 3 to 4 seconds)."
+   {
+      if Send(Send(SYS,@GetSettings),@GetCompanionDebug)
+      {
+         Debug("companion GetAttackTime",Send(self,@GetTrueName),"state",piState,"target",poTarget);
+      }
+
+      return 1400 + Random(0,300);
+   }
+
+   GetChaseTime()
+   {
+      piWalkingEffort = 0;
+
+      if poMaster <> $ AND Send(poMaster,@GetOwner) = poOwner
+         AND Send(self,@SquaredDistanceTo,#what=poMaster) > 100
+      {
+         return 160;
+      }
+
+      return 300;
+   }
+
+   NeedsBuff(oTarget = $, oSpell = $)
+   "A buff is only cast when the target does not have it (never to refresh one that is still running)."
+   {
+      if oTarget = $ OR oSpell = $
+      {
+         return FALSE;
+      }
+
+      return NOT Send(oTarget,@IsEnchanted,#what=oSpell);
+   }
+
+   PickTarget()
+   "Assists the group: fights what the master attacks, or whatever is attacking a member of the group.  Peaceful monsters are left alone."
+   {
+      local oBest, oKill, i, oObj, oHisTarget;
+
+      if piStance = 1
+      {
+         return;
+      }
+
+      if poTarget <> $ AND Send(self,@IsHostileMonster,#oMon=poTarget)
+      {
+         return;
+      }
+
+      oBest = $;
+      oKill = Send(poMaster,@GetKillTarget);
+      if Send(self,@IsHostileMonster,#oMon=oKill)
+      {
+         oBest = oKill;
+      }
+      else
+      {
+         for i in Send(poOwner,@GetHolderActive)
+         {
+            oObj = Send(poOwner,@HolderExtractObject,#data=i);
+            if Send(self,@IsHostileMonster,#oMon=oObj)
+            {
+               oHisTarget = Send(oObj,@GetTarget);
+               if oHisTarget <> $ AND poGroup <> $ AND Send(poGroup,@IsMember,#what=oHisTarget)
+               {
+                  oBest = oObj;
+
+                  break;
+               }
+            }
+         }
+      }
+
+      if oBest = $
+      {
+         return;
+      }
+
+      Send(self,@TargetSwitch,#what=oBest,#iHatred=100);
+      if Send(self,@CanReach,#what=oBest)
+      {
+         Send(self,@EnterStateAttack,#target=oBest,#actnow=TRUE);
+      }
+      else
+      {
+         Send(self,@EnterStateChase,#target=oBest,#actnow=TRUE);
+      }
+
+      return;
+   }
+
+   CompanionAct()
+   {
+      return;
+   }
+
+   % Casts <oSpell> at <oTarget> as this companion.  Spell power follows the effective level.
+   CastAt(num = 0, oTarget = $)
+   "Companions have no reagents: while the server runs the 'weaker without reagents' mode their spells are scaled like a player's. "
+   "They only use spells their effective level allows, and each cast costs mana."
+   {
+      local oSpell, oSettings, bActive, iCost, iPower;
+
+      oSpell = Send(SYS,@FindSpellByNum,#num=num);
+      if oSpell = $ OR oTarget = $
+      {
+         return FALSE;
+      }
+
+      if Send(oSpell,@GetLevel) > Send(self,@GetSpellCap,#oSpell=oSpell)
+      {
+         return FALSE;
+      }
+
+      iPower = bound(piEcl * 2,10,99);
+      % buffs are not weakened by the no-reagent rule and never weaker than power 30 (a new character's bots would give 40-second blessings)
+      if IsClass(oSpell,&PersonalEnchantment)
+      {
+         iPower = bound(iPower,30,99);
+      }
+      iCost = Send(oSpell,@GetManaCost,#who=self,#iSpellPower=iPower);
+      if piMana < iCost
+      {
+         return FALSE;
+      }
+      piMana = piMana - iCost;
+
+      oSettings = Send(SYS,@GetSettings);
+      bActive = (Send(oSettings,@GetReagentMode) = 2 AND NOT IsClass(oSpell,&PersonalEnchantment));
+      if bActive
+      {
+         Send(oSettings,@SetNoReagentActive,#value=TRUE);
+      }
+
+      Send(oSpell,@CastSpell,#who=self,#lTargets=[oTarget],#iSpellPower=iPower);
+
+      if bActive
+      {
+         Send(oSettings,@SetNoReagentActive,#value=FALSE);
+      }
+
+      return TRUE;
+   }
+
+   InRange(oTarget = $, iSquares = 8)
+   {
+      return (oTarget <> $ AND Send(oTarget,@GetOwner) = poOwner
+              AND Send(self,@SquaredDistanceTo,#what=oTarget) <= (iSquares * iSquares)
+              AND Send(self,@CanSee,#what=oTarget));
+   }
+
+   Killed(what = $)
+   {
+      if poGroup <> $
+      {
+         Send(poGroup,@RemoveMember,#what=self);
+      }
+
+      propagate;
+   }
+
+end

@@ -1,0 +1,80 @@
+% Custom: companion mage: damage spells from a distance, light robes.
+
+CompanionMage is Companion
+
+constants:
+
+   include blakston.khd
+   include protocol.khd
+
+resources:
+
+   compmage_name_rsc = "mage companion"
+   compmage_dead_name_rsc = "dead mage companion"
+
+classvars:
+
+   vrDead_name = compmage_dead_name_rsc
+   viRole = COMPANION_ROLE_MAGE
+   viDefault_behavior = AI_FIGHT_MONSTERS | AI_MOVE_FOLLOW_MASTER | AI_MOVE_OPTIMAL_RANGE
+   viColorTranslate1 = XLAT_TO_PURPLE
+   viColorTranslate2 = XLAT_TO_BLUE
+
+properties:
+
+messages:
+
+   SetEquipment()
+   {
+      send(self,@AddEquipmentObject,#what=create(&Mace));
+      send(self,@SetTroopArmor,#NewArmor=create(&LightRobe));
+
+      return;
+   }
+
+   GetOptimalRange()
+   {
+      return 5;
+   }
+
+   CompanionAct()
+   {
+      local oTarget, iSid, iRoll;
+
+      oTarget = poTarget;
+      if oTarget = $ OR NOT Send(self,@InRange,#oTarget=oTarget,#iSquares=9)
+      {
+         return;
+      }
+
+      % tier of the spell by the effective level
+      iRoll = Random(1,2);
+      if piEcl <= 10
+      {
+         iSid = SID_SHOCKING_FURY;
+      }
+      else
+      {
+         if piEcl <= 25
+         {
+            if iRoll = 1 { iSid = SID_FIREBALL; } else { iSid = SID_BLAST_OF_FIRE; }
+         }
+         else
+         {
+            if piEcl <= 40
+            {
+               if iRoll = 1 { iSid = SID_LIGHTNING_BOLT; } else { iSid = SID_EXPLOSIVE_FROST; }
+            }
+            else
+            {
+               if iRoll = 1 { iSid = SID_SLITHERBOLT; } else { iSid = SID_LIGHTNING_BOLT; }
+            }
+         }
+      }
+
+      Send(self,@CastAt,#num=iSid,#oTarget=oTarget);
+
+      return;
+   }
+
+end

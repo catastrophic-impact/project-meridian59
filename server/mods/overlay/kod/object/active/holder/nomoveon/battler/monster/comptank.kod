@@ -1,0 +1,51 @@
+% Custom: companion tank: plate armour and knight shield, melee.
+
+CompanionTank is Companion
+
+constants:
+
+   include blakston.khd
+   include protocol.khd
+
+resources:
+
+   comptank_name_rsc = "tank companion"
+   comptank_dead_name_rsc = "dead tank companion"
+
+classvars:
+
+   vrDead_name = comptank_dead_name_rsc
+   viRole = COMPANION_ROLE_TANK
+   viColorTranslate1 = XLAT_TO_GRAY
+   viColorTranslate2 = XLAT_TO_BLACK
+   vcShieldClass = &Knightshield
+
+properties:
+
+messages:
+
+   AdjustStats()
+   {
+      % a tank hits harder and is harder to hit
+      piOffense = 150 + (piEcl * 10);
+      piDefense = 200 + (piEcl * 12);
+
+      return;
+   }
+
+   SetEquipment()
+   {
+      send(self,@AddEquipmentObject,#what=create(&Longsword));
+      send(self,@SetTroopArmor,#NewArmor=create(&PlateArmor));
+
+      return;
+   }
+
+   SetShield()
+   {
+      send(self,@AddEquipmentObject,#what=create(&Knightshield));
+
+      return;
+   }
+
+end

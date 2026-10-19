@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>Meridian59</RootNamespace>
+    <AssemblyName>Meridian59</AssemblyName>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <DefineConstants>$(DefineConstants);CONCURRENT;X64;VANILLA</DefineConstants>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <EnableDefaultCompileItems>true</EnableDefaultCompileItems>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <NoWarn>$(NoWarn);CS0168;CS0219;CS0649;CS0414;CS0169;CS8981;SYSLIB0011</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="Native/Windows.cs;Properties/Resources.Designer.cs;Drawing2D/*GDI*.cs;obj/**;bin/**" />
+    <EmbeddedResource Remove="**" />
+    <EmbeddedResource Include="colortable.hex" LogicalName="colortable.hex" />
+  </ItemGroup>
+</Project>

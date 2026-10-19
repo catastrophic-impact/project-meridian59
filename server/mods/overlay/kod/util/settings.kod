@@ -1,0 +1,609 @@
+% Meridian 59, Copyright 1994-2012 Andrew Kirmse and Chris Kirmse.
+% All rights reserved.
+%
+% This software is distributed under a license that is described in
+% the LICENSE file that accompanies it.
+%
+% Meridian is a registered trademark.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+Settings is UtilityFunctions
+
+% This class keeps global game settings.
+
+constants:
+
+   include blakston.khd
+
+resources:
+
+classvars:
+
+properties:
+
+   %
+   % Economy controls
+   %
+
+   % piMoneyFactor: How much money should be given out?  Raise this number to
+   %  increase the amount of money given out.
+   piMoneyFactor = 100
+
+   % Increase this to increase the number of items dropped from monster deaths.
+   piItemFactor = 100
+
+   % Modifier to the chance for items to be generated.
+   piMagicItemModifier = 100
+
+   % Changed the wait for monsters to spawn.  A decrease means things
+   %  spawn faster (less time waiting between spawns).
+   piSpawnRate = 100
+
+   %
+   % Player advancement
+   %
+
+   % If true, you can't take any objects out of the newbie area.
+   pbCleanNewbieInventoryOnEnteringRealWorld = FALSE
+
+   piKillKarmaSwingNeutral = 2
+   piKillKarmaSwingMonster = 6
+   piKillKarmaSwingPlayer = 10
+
+   pbAtrophyOn = FALSE
+
+   % DefaultDeathCost:  Should always be a value between 1 and 100.  Lowering
+   %  this will lower the odds of a dead player losing health and skill/spell
+   %  percents.
+   piDefaultDeathCost = 100
+
+   % --- Custom death rules (our server) ---
+   % Each rule: 0 = never, 1 = only when killed by a player (PvP), 2 = only when killed by a monster or anything else (PvE), 3 = always.
+   % piDeathItemDrop: the dead player's belongings fall onto the corpse.
+   % piDeathStatLoss: loss of max health, skill and spell percents (the original "death cost").
+   % Default: no penalties at all except the trip to the underworld.
+   piDeathItemDrop = 0
+   piDeathStatLoss = 0
+
+   % If true, a dead player wakes up in the underworld with 1 health, 1 mana and 1 vigor (stamina) and has to rest.
+   pbDeathStartAtOne = TRUE
+
+   % --- Custom gameplay (our server) ---
+   % If true, players can always eat and drink, no matter how full they are.
+   pbUnlimitedEating = TRUE
+
+   % Bows: damage in percent of a plain arrow's damage when no arrows are equipped (equipped arrows = their full damage).
+   piBowNoAmmoDamagePercent = 50
+   % If true, a bow automatically equips arrows from the pack when firing (the original behaviour, which makes the 50% rule moot).
+   pbBowAutoEquipAmmo = FALSE
+   % If true, firing with arrows equipped uses one up (original behaviour).
+   pbBowUsesAmmo = TRUE
+
+   % Reagents. Mode: 0 = mandatory (original: no reagents, no spell), 1 = not needed at all (no penalty), 2 = optional: casting without them is weaker.
+   piReagentMode = 2
+   % Mode 2: how close to normal a spell cast without reagents is, in percent (10, 25, 50 or 75; 100 = no penalty).
+   %  Damage, healing and durations are this percent of normal; casting times and the mana cost of instant utility spells
+   %  are (200 - percent) percent of normal.  So 75 = 75% damage / duration and 25% longer casting / 25% more mana.
+   piNoReagentPercent = 50
+
+   % Set to TRUE only while a spell cast without reagents is being carried out (see spell.kod CastSpellScaled).
+   pbNoReagentActive = FALSE
+
+   % If false (our default), the karma requirements of spells (evil for Qor, good for Shalille) are not checked.  Items that use karma on
+   %  their own (Amulet of the Three, Sword of the Hunt) are not affected: they keep their own karma rules.
+   pbSpellKarmaRequired = FALSE
+
+   % Groups and companion bots.
+   piMaxGroupSize = 5
+   pbAllowCompanionBots = TRUE
+   % How many companion bots one player may have at a time.
+   piMaxCompanionsPerPlayer = 2
+
+   % Logoff ghost (what happens to a player who logs off in an unsafe place):
+   %  0 = off (no ghost, nothing happens), 1 = the ghost stays; if the full time passes the character dies and wakes in the underworld
+   %  (death penalties follow the death settings above), 2 = normal / original (penalties for items, spell and skill points).
+   piLogoffGhostMode = 1
+
+   % Brax elevator: seconds between automatic cycles (0 = off).
+   piElevatorAutoCycleSec = 300
+
+   % Custom mob aggro: 0 = original (aggressive mobs react to anyone in the room, but a mob already chasing a player
+   % talks the others out of it), 1 = proximity (every aggressive mob notices a player coming within piMobAggroRadius
+   % squares, no limit on how many chase at once).
+   piMobAggroMode = 1
+
+   % Writes companion bot decisions (distance to master, stuck checks, orders) to the server debug log.
+   pbCompanionDebug = FALSE
+   piMobAggroRadius = 8
+
+   % piAdvancementRate: Determines how fast or slow advancement goes for all
+   %  spells and skills.  This is a percent of normal, and only affects the
+   %  secondary chance.
+   piAdvancementRate = 100
+
+   % Multiplier for the amount of %s each mob you kill adds to your levelup chance.
+   piHPGainMultiplier = 1
+   
+   % How far up the food chain can basic players learn?  See player for more
+   %  specific information on what this number means.
+   piMaxLearnPoints = 16
+
+
+   %
+   % Spell settings
+   %
+
+   % If true, you can recast a personal enchantment on yourself if you already have it.
+   % This makes it easier to advance spells.
+   pbCanRecastSelfEnchantment = TRUE
+
+   % If true, while wearing a Jala necklace, you can cast spells even while
+   % in a trance for a Jala song.
+   pbCanRecastJalaWithNecklace = TRUE
+
+   % Can't cast a teleport spell until this long after attacking someone.  Prevents
+   % hit-and-run.  If 0, there's no restriction on when the spell can be cast.
+   piTeleportAttackDelaySec = 10 * 60
+
+   % Rescue always takes at least this long to cast
+   piRescueBaseDelaySec = 15
+   
+   % Time in seconds that ghosts will last before taking a penalty
+   piLogoffPenaltyGhostTime = 600
+
+   %
+   % Guild hall settings
+   %
+
+   % Are guild halls raidable?
+   pbGuildHallRaids = TRUE
+
+   % Wait one hour between raids by same guild.
+   piGuildHallRaidDelay = 3600 
+
+   % If true, "hot plate" objects (in guild halls) notify players when they're stepped on.
+   % This is used for debugging room creation.  It should normally be off.
+   pbShowHotPlates = FALSE
+
+   % If true, tell DMs when a player crosses a "hot plate" object (in a guild hall).
+   % Used for debugging the placement of hot plates.
+   pbReportHotPlates = FALSE
+
+   %
+   % Miscellaneous
+   %
+
+   % Line of Sight (LOS) check.  What are we using?
+   piLOS = LOS_OLD
+
+   % How many summoned objects can be in a room
+   piPlayerSummonedObjectLimit = 18
+
+   % Minimum number of HP you have to have to vote for or become
+   % Justicar
+   piMinHPForJusticar = 100
+
+   % If enabled, unsafe penalties send the player to their hometown.
+   % This is intended to prevent being players 'kept offline' by enemies.
+   pbHometownPenaltiesEnable = FALSE
+   
+   % If this is enabled a player will lose half their mana and all buffs when they log off in a safe zone.
+   % This is to prevent 'character trains' with pre-buffed characters
+   pbLogSafePenaltyEnable = FALSE
+
+   % If disabled, outlaws & murderers will not be afforded the 1/3-hp damage cap protection.
+   pbDamageCapProtectionMurderersEnable = FALSE
+
+   % If enabled, mobs will always check how many other mobs are aggroed on
+   % a player in hatred calculations. This is off by default, enabling it
+   % will allow players to attack monsters without them fighting back.
+   pbAlwaysCheckMonsterChasers = FALSE
+   
+   % Broadcast mana penalty in percent.  While the cost to broadcast can be
+   % useful to prevent flame wars and spamming, it also reduces player's
+   % ability to ask questions and socialize.  (Puts a damper on trivia
+   % contests too!)  This value can be changed to tweak the penalty in realtime
+   piBroadcastManaCostPercent = 50
+
+   % If enabled, door opening sounds are shared with all players in the room.
+   % If disabled, only the player opening the door hears the sound.
+   pbDoorSoundShared = TRUE
+
+   % Global switch for the flickering-light effect, so an admin can disable it
+   % while reviewing the world and finish configuring lights before players see
+   % it. When disabled, lights report as steady.
+   pbFlickeringLightsEnabled = TRUE
+
+messages:
+
+   Constructor(server_num = $)
+   "Apply the appropriate settings for a given server number"
+   {
+      % Apparently at some point someone decided this was a better value
+      piKillKarmaSwingNeutral = 3;
+
+      % Settings retrieved from running servers on 12/29/2010
+      if server_num <> $
+      {
+         if server_num = 101
+         {
+            piDefaultDeathCost   = 90;
+            piAdvancementRate    = 125;
+            piMoneyFactor        = 120;
+            piItemFactor         = 125;
+            piMagicItemModifier  = 80;
+            piSpawnRate          = 80;
+         } 
+
+         if server_num = 102
+         {
+            piDefaultDeathCost   = 60;
+            piAdvancementRate    = 190;
+            piMoneyFactor        = 100;
+            piItemFactor         = 175;
+            piMagicItemModifier  = 100;
+            piSpawnRate          = 85;
+         } 
+      }
+      return;
+   }
+
+   %
+   % Economy controls
+   %
+
+   GetMoneyFactor()
+   {
+      return piMoneyFactor;
+   }
+
+   GetItemFactor()
+   {
+      return piItemFactor;
+   }
+
+   GetMagicItemModifier()
+   {
+      return piMagicItemModifier;
+   }
+
+   GetSpawnRate()
+   {
+      return piSpawnRate;
+   }
+   
+   %
+   % Player advancement
+   %
+
+   CleanNewbieInventoryOnEnteringRealWorld()
+   {
+      return pbCleanNewbieInventoryOnEnteringRealWorld;
+   }
+
+   GetDefaultDeathCost()
+   {
+      return piDefaultDeathCost;
+   }
+
+   DeathRuleApplies(rule = 0,pvp = FALSE)
+   {
+      if rule = 3
+      {
+         return TRUE;
+      }
+
+      if rule = 1
+      {
+         return pvp;
+      }
+
+      if rule = 2
+      {
+         return NOT pvp;
+      }
+
+      return FALSE;
+   }
+
+   DeathItemDropApplies(pvp = FALSE)
+   {
+      return Send(self,@DeathRuleApplies,#rule=piDeathItemDrop,#pvp=pvp);
+   }
+
+   DeathStatLossApplies(pvp = FALSE)
+   {
+      return Send(self,@DeathRuleApplies,#rule=piDeathStatLoss,#pvp=pvp);
+   }
+
+   DeathStartAtOne()
+   {
+      return pbDeathStartAtOne;
+   }
+
+   UnlimitedEating()
+   {
+      return pbUnlimitedEating;
+   }
+
+   GetBowNoAmmoDamagePercent()
+   {
+      return piBowNoAmmoDamagePercent;
+   }
+
+   BowAutoEquipAmmo()
+   {
+      return pbBowAutoEquipAmmo;
+   }
+
+   BowUsesAmmo()
+   {
+      return pbBowUsesAmmo;
+   }
+
+   GetReagentMode()
+   {
+      return piReagentMode;
+   }
+
+   GetNoReagentPercent()
+   {
+      return piNoReagentPercent;
+   }
+
+   % Percent of the normal casting time / mana cost without reagents (150 when the setting is 50).
+   GetNoReagentMoreCostPercent()
+   {
+      return 200 - piNoReagentPercent;
+   }
+
+   SetNoReagentActive(value = FALSE)
+   {
+      pbNoReagentActive = value;
+
+      return;
+   }
+
+   NoReagentActive()
+   {
+      return pbNoReagentActive;
+   }
+
+   ScaleByPercent(value = 0,percent = 100)
+   {
+      local iResult;
+
+      iResult = (value * percent) / 100;
+      if value > 0 AND iResult < 1
+      {
+         iResult = 1;
+      }
+
+      return iResult;
+   }
+
+   % Amounts of damage / healing of a spell cast without reagents.
+   ScaleNoReagentPower(value = 0)
+   {
+      if pbNoReagentActive
+      {
+         return Send(self,@ScaleByPercent,#value=value,#percent=piNoReagentPercent);
+      }
+
+      return value;
+   }
+
+   % Durations (ms) of timed effects of a spell cast without reagents.
+   ScaleNoReagentDuration(value = $)
+   {
+      if pbNoReagentActive AND value <> $ AND value <> SPELL_INDEFINITE_DURATION
+      {
+         return Send(self,@ScaleByPercent,#value=value,#percent=piNoReagentPercent);
+      }
+
+      return value;
+   }
+
+   % Times (ms) of a spell cast without reagents: longer by (100 - percent) percent.
+   ScaleNoReagentTime(value = 0)
+   {
+      if pbNoReagentActive
+      {
+         return (value * (200 - piNoReagentPercent)) / 100;
+      }
+
+      return value;
+   }
+
+   GetMaxGroupSize()
+   {
+      return piMaxGroupSize;
+   }
+
+   AllowCompanionBots()
+   {
+      return pbAllowCompanionBots;
+   }
+
+   GetMaxCompanionsPerPlayer()
+   {
+      return piMaxCompanionsPerPlayer;
+   }
+
+   SpellKarmaRequired()
+   {
+      return pbSpellKarmaRequired;
+   }
+
+   GetLogoffGhostMode()
+   {
+      return piLogoffGhostMode;
+   }
+
+   GetElevatorAutoCycleSec()
+   {
+      return piElevatorAutoCycleSec;
+   }
+
+   GetAdvancementRate()
+   {
+      return piAdvancementRate;
+   }
+
+   GetHPGainMultiplier()
+   {
+      return piHPGainMultiplier;
+   }
+
+   GetKillKarmaSwingNeutral()
+   {
+      return piKillKarmaSwingNeutral;
+   }
+
+   GetKillKarmaSwingMonster()
+   {
+      return piKillKarmaSwingMonster;
+   }
+
+   GetKillKarmaSwingPlayer()
+   {
+      return piKillKarmaSwingPlayer;
+   }
+
+   IsAtrophyOn()
+   {
+      return pbAtrophyOn;
+   }
+
+   GetMaxLearnPoints()
+   {
+      return piMaxLearnPoints;
+   }
+
+   %
+   % Spells
+   %
+
+   CanRecastSelfEnchantment() 
+   {
+      return pbCanRecastSelfEnchantment;
+   }
+
+   CanRecastJalaWithNecklace()
+   {
+      return pbCanRecastJalaWithNecklace;
+   }
+
+   TeleportAttackDelaySec()
+   {
+      return piTeleportAttackDelaySec;
+   }
+
+   RescueBaseDelaySec()
+   {
+      return piRescueBaseDelaySec;
+   }
+
+   %
+   % Guild hall settings
+   %
+
+   GuildHallRaidsEnabled()
+   {
+      return pbGuildHallRaids;
+   }
+
+   GetGuildhallRaidDelay()
+   {
+      return piGuildHallRaidDelay;
+   }
+
+   ShowHotPlates()
+   {
+      return pbShowHotPlates;
+   }
+
+   ReportHotPlates()
+   {
+      return pbReportHotPlates;
+   }
+
+
+   %
+   % Miscellaneous
+   %
+
+   GetLOS()
+   {
+      return piLOS;
+   }
+
+   GetPlayerSummonedObjectLimit()
+   {
+      return piPlayerSummonedObjectLimit;
+   }
+
+   GetMinHPForJusticar()
+   {
+      return piMinHPForJusticar;
+   }
+   
+   % This returns whether players go to a room's blink spot or their hometown when they pen
+   HometownPenaltiesEnabled()
+   {
+      return pbHometownPenaltiesEnable;
+   }
+   
+   % Returns if a player should receive a 'penalty' for logging off in a safe zone
+   LogSafePenaltyEnable()
+   {
+      return pbLogSafePenaltyEnable;
+   }
+
+   DamageCapProtectionMurderersEnabled()
+   {
+      return pbDamageCapProtectionMurderersEnable;
+   }
+
+   GetLogoffPenaltyGhostTime()
+   {
+      return piLogoffPenaltyGhostTime;
+   }
+
+   GetCompanionDebug()
+   {
+      return pbCompanionDebug;
+   }
+
+   GetMobAggroMode()
+   {
+      return piMobAggroMode;
+   }
+
+   GetMobAggroRadius()
+   {
+      return piMobAggroRadius;
+   }
+
+   AlwaysCheckMonsterChasers()
+   {
+      return pbAlwaysCheckMonsterChasers;
+   }
+
+   GetBroadcastManaCostPercent()
+   {
+      return piBroadcastManaCostPercent;
+   }
+
+   DoorSoundSharedEnabled()
+   {
+      return pbDoorSoundShared;
+   }
+
+   FlickeringLightsEnabled()
+   {
+      return pbFlickeringLightsEnabled;
+   }
+end
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

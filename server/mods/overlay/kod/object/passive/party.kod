@@ -1,0 +1,267 @@
+% Custom: a party (group) of players and companion bots (our server).  Transient: groups are not kept over a restart (members leave on logon).
+% Members are Users (kind 1) and Companions (kind 2).  The state is pushed to every logged-on member as a BP_EXT_GAME / EXT_MSG_GROUP_STATE packet.
+
+Party is PassiveObject
+
+constants:
+
+   include blakston.khd
+   include protocol.khd
+
+   GROUP_TICK_MS = 2000
+
+resources:
+
+   group_joined = "%s%s joins the group."
+   group_left = "%s%s leaves the group."
+   group_disbanded = "The group is disbanded."
+   group_full = "The group is full."
+   group_new_leader = "%s%s is now the group leader."
+
+classvars:
+
+properties:
+
+   plMembers = $
+   poLeader = $
+   ptTick = $
+
+messages:
+
+   Constructor(leader = $)
+   {
+      poLeader = leader;
+      plMembers = [leader];
+      Send(leader,@SetGroup,#oGroup=self);
+      ptTick = CreateTimer(self,@Tick,GROUP_TICK_MS);
+
+      propagate;
+   }
+
+   Delete()
+   {
+      if ptTick <> $
+      {
+         DeleteTimer(ptTick);
+         ptTick = $;
+      }
+
+      propagate;
+   }
+
+   GetLeader()
+   {
+      return poLeader;
+   }
+
+   GetMembers()
+   {
+      return plMembers;
+   }
+
+   GetCount()
+   {
+      return Length(plMembers);
+   }
+
+   IsMember(what = $)
+   {
+      return FindListElem(plMembers,what) <> 0;
+   }
+
+   IsFull()
+   {
+      return Length(plMembers) >= Send(Send(SYS,@GetSettings),@GetMaxGroupSize);
+   }
+
+   CountCompanions()
+   {
+      local i, iCount;
+
+      iCount = 0;
+      for i in plMembers
+      {
+         if NOT IsClass(i,&User)
+         {
+            iCount = iCount + 1;
+         }
+      }
+
+      return iCount;
+   }
+
+   Tick()
+   {
+      ptTick = CreateTimer(self,@Tick,GROUP_TICK_MS);
+      Send(self,@SendStateToAll);
+
+      return;
+   }
+
+   Tell(rsc = $, who = $)
+   "Sends a message about <who> to every logged-on user in the group."
+   {
+      local i;
+
+      for i in plMembers
+      {
+         if IsClass(i,&User)
+         {
+            Send(i,@MsgSendUser,#message_rsc=rsc,#parm1=Send(who,@GetCapDef),#parm2=Send(who,@GetName));
+         }
+      }
+
+      return;
+   }
+
+   AddMember(what = $)
+   {
+      if what = $ OR Send(self,@IsMember,#what=what) OR Send(self,@IsFull)
+      {
+         return FALSE;
+      }
+
+      plMembers = Cons(what,plMembers);
+      Send(what,@SetGroup,#oGroup=self);
+      Send(self,@Tell,#rsc=group_joined,#who=what);
+      Send(self,@SendStateToAll);
+
+      return TRUE;
+   }
+
+   RemoveMember(what = $)
+   {
+      local i, oNext, lKill;
+
+      if NOT Send(self,@IsMember,#what=what)
+      {
+         return;
+      }
+
+      Send(self,@Tell,#rsc=group_left,#who=what);
+      plMembers = DelListElem(plMembers,what);
+      Send(what,@SetGroup,#oGroup=$);
+      Send(what,@SendGroupState);
+
+      if NOT IsClass(what,&User)
+      {
+         % a companion leaves: it is gone for good (Delete calls us again, but it is no member any more)
+         Send(what,@CompanionLeftGroup);
+      }
+      else
+      {
+         % companions follow their master out of the group
+         lKill = $;
+         for i in plMembers
+         {
+            if IsClass(i,&Companion) AND Send(i,@GetMasterUser) = what
+            {
+               lKill = Cons(i,lKill);
+            }
+         }
+
+         for i in lKill
+         {
+            plMembers = DelListElem(plMembers,i);
+            Send(i,@SetGroup,#oGroup=$);
+            Send(i,@CompanionLeftGroup);
+         }
+      }
+
+      if what = poLeader
+      {
+         % the leader leaves: the first remaining user takes over
+         oNext = $;
+         for i in plMembers
+         {
+            if IsClass(i,&User)
+            {
+               oNext = i;
+
+               break;
+            }
+         }
+
+         if oNext = $
+         {
+            Send(self,@Disband);
+
+            return;
+         }
+
+         poLeader = oNext;
+         Send(self,@Tell,#rsc=group_new_leader,#who=oNext);
+      }
+
+      % a group with a single member is no group
+      if Length(plMembers) <= 1
+      {
+         Send(self,@Disband);
+
+         return;
+      }
+
+      Send(self,@SendStateToAll);
+
+      return;
+   }
+
+   Disband()
+   {
+      local i, lMembers;
+
+      lMembers = plMembers;
+      plMembers = $;
+      for i in lMembers
+      {
+         Send(i,@SetGroup,#oGroup=$);
+         if IsClass(i,&User)
+         {
+            Send(i,@MsgSendUser,#message_rsc=group_disbanded);
+            Send(i,@SendGroupState);
+         }
+         else
+         {
+            % companions do not outlive their group
+            Send(i,@CompanionLeftGroup);
+         }
+      }
+
+      Send(self,@Delete);
+
+      return;
+   }
+
+   SendStateToAll()
+   {
+      local i;
+
+      for i in plMembers
+      {
+         if IsClass(i,&User)
+         {
+            Send(i,@SendGroupState);
+         }
+      }
+
+      return;
+   }
+
+   AddStatePacket()
+   "Called by a User (SendGroupState) to put the state into the packet it is building."
+   {
+      local i;
+
+      AddPacket(1,BP_EXT_GAME, 1,EXT_MSG_GROUP_STATE, 4,poLeader, 1,Length(plMembers));
+      for i in plMembers
+      {
+         AddPacket(4,i, 1,Send(i,@GetGroupKind), 1,Send(i,@GetGroupRole),
+                   STRING_RESOURCE,Send(i,@GetName),
+                   2,Send(i,@GetGroupHealth), 2,Send(i,@GetGroupMaxHealth),
+                   2,Send(i,@GetGroupMana), 2,Send(i,@GetGroupMaxMana));
+      }
+
+      return;
+   }
+
+end

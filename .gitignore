@@ -1,0 +1,49 @@
+# ---- build output and downloaded tools (recreated by the scripts in tools/)
+/release/
+/build/
+/tools/dotnet/
+/tools/dotnet-home/
+/tools/godot/
+/tools/nuget/
+/tools/admin-venv/
+/tools/spike/
+**/bin/
+**/obj/
+.godot/
+*.godot_cache
+__pycache__/
+.venv/
+
+# ---- game assets: NOT part of this repository (see docs/ASSETS.md and tools/extract_assets.py)
+/client_files/
+/client/assets/
+
+# ---- local runtime data of the developer checkout
+/userdata/
+/server/blakserv
+/server/loadkod/
+/server/memmap/
+/server/rsc/
+/server/rooms/
+/server/channel/
+/server/savegame/
+/server/rsc0000.rsb
+/server/kodbase.txt
+/server/rooms.json
+/server/items.json
+/server/console.out
+/server/blakston.khd
+/server/protocol.khd
+/server/packages.txt.bak
+
+# ---- private notes, screenshots, logs, old experiments
+/claude_dev_notes.txt
+/m59_ideas.txt
+/bots/
+/tools/*.png
+/tools/*.log
+/tools/*.hex
+/tools/*.svg
+/tools/run_retail.sh
+*.out
+*.log

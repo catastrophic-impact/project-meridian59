@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <RootNamespace>Bots</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../lib/Meridian59/Meridian59.csproj" />
+    <!-- shared with the Godot client: no Godot types in these two files -->
+    <Compile Include="../client/GameClient.cs" Link="Shared/GameClient.cs" />
+    <Compile Include="../client/Walker.cs" Link="Shared/Walker.cs" />
+  </ItemGroup>
+</Project>
