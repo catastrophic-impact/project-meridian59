@@ -156,7 +156,7 @@ public class HudManager
     readonly Dictionary<string, bool> defaultVisible = new Dictionary<string, bool>();
     readonly string savePath;
     LayoutFile layout = new LayoutFile();
-    CheckButton lockCheck; HSlider scaleSlider; Label scaleLabel;
+    CheckButton lockCheck; HSlider scaleSlider; Label scaleLabel; Action templatesChanged;
     bool suppressUi;
 
     readonly Dictionary<string, Vector2> frac = new Dictionary<string, Vector2>();
@@ -167,9 +167,9 @@ public class HudManager
     public bool Locked => layout.Locked;
     public float Scale => (float)layout.Scale;
 
-    public HudManager(Node parent, Window window, string savePath)
+    public HudManager(Node parent, Window window, string savePath, string shippedTemplates = "", string userTemplates = "")
     {
-        this.window = window; this.savePath = savePath;
+        this.window = window; this.savePath = savePath; ShippedTemplateDir = shippedTemplates; UserTemplateDir = userTemplates;
         var layer = new CanvasLayer { Layer = 5 };
         Root = new Control { MouseFilter = Control.MouseFilterEnum.Ignore };
         Root.SetAnchorsPreset(Control.LayoutPreset.FullRect);
@@ -242,6 +242,68 @@ public class HudManager
                 w.Position = Clamp(new Vector2((float)(st.X * ps.X), (float)(st.Y * ps.Y)), w.Size, ps);
             else w.Position = Clamp(w.Position, w.Size, ps);
         }
+    }
+
+    // ------------------------------------------------------------ layout templates
+    /// <summary>Layout templates: the same file as the saved layout, windows only. Shipped ones live in client/layouts, the player's own in userdata/layouts (those win on equal names).</summary>
+    public string ShippedTemplateDir = "", UserTemplateDir = "";
+
+    public List<string> TemplateNames()
+    {
+        var names = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var dir in new[] { ShippedTemplateDir, UserTemplateDir })
+            if (!string.IsNullOrEmpty(dir) && Directory.Exists(dir))
+                foreach (var f in Directory.GetFiles(dir, "*.json")) names.Add(Path.GetFileNameWithoutExtension(f));
+        return new List<string>(names);
+    }
+
+    string TemplatePath(string name)
+    {
+        string user = Path.Combine(UserTemplateDir, name + ".json"), shipped = Path.Combine(ShippedTemplateDir, name + ".json");
+        return File.Exists(user) ? user : shipped;
+    }
+
+    static string SafeName(string name)
+    {
+        var bad = Path.GetInvalidFileNameChars();
+        var sb = new System.Text.StringBuilder();
+        foreach (var c in name.Trim()) if (Array.IndexOf(bad, c) < 0) sb.Append(c);
+        return sb.ToString();
+    }
+
+    /// <summary>Put every window where the template says (windows it does not mention go back to their defaults).</summary>
+    public bool ApplyTemplate(string name)
+    {
+        try
+        {
+            var t = JsonSerializer.Deserialize<LayoutFile>(File.ReadAllText(TemplatePath(name)));
+            if (t == null) return false;
+            layout.Windows.Clear();
+            foreach (var kv in t.Windows) if (kv.Key != "interface") layout.Windows[kv.Key] = kv.Value;
+            foreach (var w in windows.Values)
+                if (w.WindowId != "interface") PlaceFromDefaultOrSaved(w, defaultVisible.GetValueOrDefault(w.WindowId, true));
+            Save();
+            return true;
+        }
+        catch (Exception ex) { GD.PrintErr("layout template: " + ex.Message); return false; }
+    }
+
+    /// <summary>Save how the windows are now as a template of the player's own; returns the name used.</summary>
+    public string SaveTemplate(string name)
+    {
+        name = SafeName(name);
+        if (name.Length == 0) return null;
+        try
+        {
+            var ps = UiSize;
+            var t = new LayoutFile { Locked = false, Scale = 1.0 };
+            foreach (var w in windows.Values)
+                if (w.WindowId != "interface") t.Windows[w.WindowId] = new WinState { X = w.Position.X / ps.X, Y = w.Position.Y / ps.Y, W = w.Size.X, H = w.Size.Y, Visible = w.Visible };
+            Directory.CreateDirectory(UserTemplateDir);
+            File.WriteAllText(Path.Combine(UserTemplateDir, name + ".json"), JsonSerializer.Serialize(t, new JsonSerializerOptions { WriteIndented = true }));
+            return name;
+        }
+        catch (Exception ex) { GD.PrintErr("layout template save: " + ex.Message); return null; }
     }
 
     public void ResetLayout()
@@ -346,6 +408,25 @@ public class HudManager
         var reset = new Button { Text = "Reset window layout" };
         reset.Pressed += ResetLayout;
         box.AddChild(lockCheck); box.AddChild(scaleLabel); box.AddChild(scaleSlider); box.AddChild(reset);
+        // layout templates
+        box.AddChild(new Label { Text = "Layouts", Modulate = new Color(1, 1, 1, 0.7f) });
+        var pick = new OptionButton { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, TooltipText = "Ready-made window layouts, and your own" };
+        var load = new Button { Text = "Use" };
+        var prow = new HBoxContainer(); prow.AddThemeConstantOverride("separation", 4); prow.AddChild(pick); prow.AddChild(load);
+        var nameEdit = new LineEdit { PlaceholderText = "name for the current layout", SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        var saveT = new Button { Text = "Save" };
+        var srow = new HBoxContainer(); srow.AddThemeConstantOverride("separation", 4); srow.AddChild(nameEdit); srow.AddChild(saveT);
+        void fill(string select = null)
+        {
+            pick.Clear();
+            foreach (var n in TemplateNames()) { pick.AddItem(n); if (n == select) pick.Select(pick.ItemCount - 1); }
+            load.Disabled = pick.ItemCount == 0;
+        }
+        fill();
+        load.Pressed += () => { if (pick.ItemCount > 0) ApplyTemplate(pick.GetItemText(pick.Selected)); };
+        saveT.Pressed += () => { var n = SaveTemplate(nameEdit.Text); if (n != null) { fill(n); nameEdit.Text = ""; } };
+        templatesChanged = () => fill();
+        box.AddChild(prow); box.AddChild(srow);
         InterfaceBox = box;
         box.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         var scroll = new ScrollContainer { ClipContents = true, HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled };

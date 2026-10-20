@@ -10,6 +10,12 @@ Newest first. Each push to GitHub gets an entry.
 - **Who**: the list of players who are online, kept up to date as people come and go. Double-click a name (or "Send mail") to write to them.
 - **Guild**: your guild's name, your rank and its members, with Invite target, Exile, Leave, Hand over and Disband (greyed out when your rank may not do it). When the server offers to found a guild you can pick the name and the five rank titles.
 
+### Window and layouts
+- The client now starts **maximized**; F11 or the Interface window's "Full screen" switch toggles real full screen (and back to maximized).
+- **Layout templates**: in the Interface window pick a ready-made window layout and press Use, or arrange your windows and save them under a name. Your own layouts are in `userdata/layouts`; layouts shipped with the client go in `client/layouts`.
+- Music and ambient loops stop when you return to the login screen.
+- Name tags are hidden while their owner is behind a wall or ceiling.
+
 ### Hand glow
 - While you cast a spell with bare hands, your hand glows as in the original (the server sends a glow overlay that sits on the hand's hotspot).
 

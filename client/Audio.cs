@@ -92,6 +92,7 @@ public partial class GameAudio : Node
         }
     }
 
+    public bool AnyPlaying => (music != null && music.Playing && music.VolumeDb > -70f) || loops.Count > 0;
     public void SetMusicVolume(float v) { MusicVolume = v; if (music != null && music.Playing) music.VolumeDb = Db(v); }
     public void SetSfxVolume(float v) { SfxVolume = v; }
 

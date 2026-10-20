@@ -37,6 +37,9 @@ public partial class Main
         scroll.Toggled += on => { audioSettings.ScrollWater = on; SaveAudioSettings(); };
         var cycle = new CheckButton { Text = "Flashing wall textures (gates)", ButtonPressed = audioSettings.CycleWalls, TooltipText = "Some walls, like iron gates, switch between texture frames several times a second, as in the original client. Turn off to show a still picture." };
         cycle.Toggled += on => { audioSettings.CycleWalls = on; SaveAudioSettings(); };
+        fullscreenCheck = new CheckButton { Text = "Full screen (F11)", ButtonPressed = GetWindow().Mode == Window.ModeEnum.Fullscreen, TooltipText = "The client starts maximized. Switch to real full screen here or with F11." };
+        fullscreenCheck.Toggled += on => SetFullscreen(on);
+        box.AddChild(fullscreenCheck);
         box.AddChild(scroll);
         box.AddChild(cycle);
         var wx = new CheckButton { Text = "Weather (rain, snow, sand)", ButtonPressed = audioSettings.Weather, TooltipText = "Draw the rain, snow and sandstorms the server sends. Turn off for a clear view." };

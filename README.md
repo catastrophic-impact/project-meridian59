@@ -51,7 +51,8 @@ reload, memory / timers / usage) · **Game settings** (every rule above, with de
   spells, items, skills and companion orders (the Attack button shows your wielded weapon), **full-screen map** with the original look and your own notes (saved per character),
   stamina rules for sprinting, character creation, server list, volume settings, admin tools window, optional debug log.
 * **Shops and trading** — right-click a merchant, banker or player in the Look window: buy, sell, make and answer offers, deposit and withdraw; **mail**, a **Who** list and a **Guild** window on the top bar.
-* **Third-person camera** that stays inside the room, **key remapping** (Interface window), windows you can move, resize and lock, UI scale.
+* **Third-person camera** that stays inside the room, **key remapping** (Interface window), windows you can move, resize and lock, UI scale, **layout templates**
+  (ready-made and your own), starts maximized with F11 for full screen; name tags hide behind walls.
 * Works with our server's extras; against other servers it still plays the base game (group, buff timers and combat numbers stay empty).
 
 ## Quick start

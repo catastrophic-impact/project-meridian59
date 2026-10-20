@@ -88,6 +88,7 @@ public partial class Main : Node
 
     public override void _Ready()
     {
+        if (System.Environment.GetEnvironmentVariable("M59_WINDOWED") != "1") GetTree().CreateTimer(0.4).Timeout += () => GetWindow().Mode = Window.ModeEnum.Maximized;      // maximize once the window exists (asking for it in the project settings leaves a blank view on this Wayland setup)
         var args = OS.GetCmdlineUserArgs();
         string startRoom = null;
         for (int i = 0; i < args.Length; i++)
@@ -257,6 +258,7 @@ public partial class Main : Node
             else if (onlineMode && roomShown && Pressed("chat", k)) { OpenChatInput(); GetViewport().SetInputAsHandled(); }
             else if (k.Keycode == Key.Escape) { if (onlineMode && roomShown) ToggleGameMenu(); else Input.MouseMode = Input.MouseModeEnum.Visible; }
             else if (k.Keycode == Key.F10 && hudMgr != null) hudMgr.Toggle("interface");
+            else if (k.Keycode == Key.F11) ToggleFullscreen();
             else if (Pressed("camera", k) && onlineMode && roomShown && !chatFocused && !k.CtrlPressed) { ToggleThirdPerson(); GetViewport().SetInputAsHandled(); }
             else if (k.Keycode == Key.F6 && onlineMode && roomShown && client.IsAdmin) { hudMgr?.Toggle("admin"); GetViewport().SetInputAsHandled(); }
             else if (k.Keycode == Key.F9 && onlineMode && roomShown) { WhereReport(""); GetViewport().SetInputAsHandled(); }
@@ -283,10 +285,22 @@ public partial class Main : Node
         }
     }
 
+    ulong loginAudioLogAt;
+
+    /// <summary>The client starts maximized (switched on shortly after the window opens). F11 or the Interface window's "Full screen" switch toggles real full screen. M59_WINDOWED=1 starts in a plain window (tests).</summary>
+    void ToggleFullscreen() => SetFullscreen(GetWindow().Mode != Window.ModeEnum.Fullscreen);
+    void SetFullscreen(bool on)
+    {
+        GetWindow().Mode = on ? Window.ModeEnum.Fullscreen : Window.ModeEnum.Maximized;
+        if (fullscreenCheck != null && fullscreenCheck.ButtonPressed != on) fullscreenCheck.SetPressedNoSignal(on);
+    }
+    CheckButton fullscreenCheck;
+
     public override void _Process(double delta)
     {
+        if (AnimLog && loginPanel != null && loginPanel.Visible && Time.GetTicksMsec() > loginAudioLogAt) { loginAudioLogAt = Time.GetTicksMsec() + 2000; GD.Print($"[audio] login screen, sound playing: {audio.AnyPlaying}"); }
         if (hud != null) hud.Visible = !onlineMode || (client != null && client.IsAdmin && audioSettings.ShowDebug);   // debug text: admins only, toggled in F6 > Debug
-        if (onlineMode) { OnlineProcess(); UpdatePov(delta); UpdateScreenEffects((float)delta); UpdateBuffBar(); UpdateDebugLog(); UpdateFloatTexts((float)delta); UpdateWeather((float)delta); TradeTestTick(); if (weaponAskAt > 0 && Time.GetTicksMsec() / 1000.0 >= weaponAskAt) { weaponAskAt = 0; client.RequestWeapon(); } } else UpdateRoomAnimations();
+        if (onlineMode) { OnlineProcess(); UpdatePov(delta); UpdateScreenEffects((float)delta); UpdateBuffBar(); UpdateDebugLog(); UpdateFloatTexts((float)delta); UpdateWeather((float)delta); UpdateNameOcclusion(); TradeTestTick(); if (weaponAskAt > 0 && Time.GetTicksMsec() / 1000.0 >= weaponAskAt) { weaponAskAt = 0; client.RequestWeapon(); } } else UpdateRoomAnimations();
 
         if (onlineMode && roomShown && currentRoom != null) WalkProcess((float)delta);
         RunTestHooks();
@@ -541,6 +555,7 @@ public partial class Main : Node
     void ReturnToLogin(string message)
     {
         client.Disconnect(); HideCharCreate(); resting = false; UpdateRestButton(); ResetEffects(); SetBackground(null); ClearBgOverlays();
+        audio.StopMusic(); audio.RoomChanged();      // no room music or ambient loops on the login screen
         roomShown = false; flyMode = false; walker = null; currentRoom = null;
         current?.QueueFree(); current = null;
         objectsRoot?.QueueFree(); objectsRoot = null;
@@ -1120,6 +1135,33 @@ public partial class Main : Node
         sp.Position = RoomBuilder.P(p.x, p.y, floor);
     }
 
+    /// <summary>True when a wall, floor or ceiling is between the two points (rays through the room's real triangles).</summary>
+    bool RoomBlocks(Vector3 from, Vector3 to)
+    {
+        if (current == null) return false;
+        if (!ReferenceEquals(triStaticFor, current)) { triStaticFor = current; triStatic = TrianglesOf(current); }
+        if (!ReferenceEquals(triDynFor, dynNode)) { triDynFor = dynNode; triDyn = TrianglesOf(dynNode); }
+        var d = to - from; float len = d.Length();
+        if (len < 0.5f) return false;
+        d /= len; var end = from + d * (len - 0.3f);       // stop a little short so a tag against a wall is not hidden by that wall
+        return (triStatic?.IntersectSegment(from, end).Count ?? 0) > 0 || (triDyn?.IntersectSegment(from, end).Count ?? 0) > 0;
+    }
+
+    /// <summary>Name tags are drawn without depth testing (so they are not cut by their own sprite); hide the ones whose owner is behind a wall or ceiling.</summary>
+    void UpdateNameOcclusion()
+    {
+        if (cam == null || !roomShown) return;
+        var eye = cam.GlobalPosition;
+        foreach (var kv in objSprites)
+        {
+            var sp = kv.Value;
+            if (!sp.Visible || sp.GetNodeOrNull<Label3D>("name") is not Label3D lbl) continue;
+            bool vis = !RoomBlocks(eye, lbl.GlobalPosition);
+            if (AnimLog && lbl.Visible != vis) GD.Print($"[nametag] {lbl.Text} {(vis ? "shown" : "hidden")}");
+            lbl.Visible = vis;
+        }
+    }
+
     const float CameraWallGap = 0.6f;            // how far (Godot units, 4 = one square) the third-person camera stays short of a wall
     Node3D triStaticFor, triDynFor; TriangleMesh triStatic, triDyn;
     static TriangleMesh TrianglesOf(Node3D node) => node?.GetNodeOrNull<MeshInstance3D>("Geometry")?.Mesh?.GenerateTriangleMesh();
@@ -1303,7 +1345,7 @@ public partial class Main : Node
     void BuildHud()
     {
         string layoutPath = Path.GetFullPath(ProjectSettings.GlobalizePath("res://../userdata/hud_layout.json"));
-        hudMgr = new HudManager(this, GetWindow(), layoutPath);
+        hudMgr = new HudManager(this, GetWindow(), layoutPath, Path.GetFullPath(ProjectSettings.GlobalizePath("res://layouts")), Path.GetFullPath(ProjectSettings.GlobalizePath("res://../userdata/layouts")));
         BuildAudioSliders();
         LoadDebugSettings(); BuildDebugLogUi();
         BuildTopBarButtons();
