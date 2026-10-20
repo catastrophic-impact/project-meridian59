@@ -325,6 +325,9 @@ public class HudManager
         Save();
     }
 
+    /// <summary>A saved layout may hold an older, smaller size of a window whose content has grown: make it at least this tall.</summary>
+    public void EnsureMinHeight(string id, float h) { if (windows.TryGetValue(id, out var w) && w.Size.Y < h) w.Size = new Vector2(w.Size.X, h); }
+
     /// <summary>Called once all windows are filled: fit the settings windows that are already open.</summary>
     public void FitSettingsWindows() { foreach (var id in fitWindows) if (windows.TryGetValue(id, out var w) && w.Visible) { w.GetParent().MoveChild(w, -1); FitToContent(w); } }
 

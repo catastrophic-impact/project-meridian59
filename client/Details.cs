@@ -35,7 +35,7 @@ public partial class Main
         scroll.AddChild(detailsBox);
         detailsWin = hudMgr.Add("details", "Details", scroll, new Vector2(0.01f, 0.30f), new Vector2(330, 470), visibleByDefault: false);
         detailsWin.Visible = false;
-        client.DetailsReceived += rows => { detailsRows = rows; if (AnimLog) GD.Print("[details] " + string.Join(" ", rows.Select(r => $"{r.id}:{r.a}/{r.b}"))); FillDetails(); };
+        client.DetailsReceived += rows => { detailsRows = rows; UpdateGrowthBar(); if (AnimLog) GD.Print("[details] " + string.Join(" ", rows.Select(r => $"{r.id}:{r.a}/{r.b}"))); FillDetails(); };
         client.EquipmentChanged += () => { if (detailsWin.Visible) detailsAt = 0; };
     }
 
@@ -45,12 +45,26 @@ public partial class Main
         if (detailsWin.Visible) detailsAt = 0;
     }
 
+    /// <summary>The thin bar under vigor: how close the hidden "gain chance" counter is to its high mark, i.e. the chance that the next kill of a tougher creature adds a point of maximum health.</summary>
+    void UpdateGrowthBar()
+    {
+        if (growthBar == null) return;
+        foreach (var r in detailsRows)
+            if (r.id == 50)
+            {
+                double pct = r.b > 0 ? Math.Clamp(r.a * 100.0 / r.b, 0, 100) : 0;
+                growthBar.Value = pct / 100.0;
+                growthBar.TooltipText = $"Growth: {pct:F0}% chance that your next kill of a creature tougher than you makes you hardier (+1 maximum health).\nKilling creatures weaker than you sets the progress back; stamina helps it along.";
+            }
+    }
+
     void PollDetails()
     {
-        if (detailsWin == null || !detailsWin.Visible || !roomShown) return;
+        if (detailsWin == null || !roomShown) return;
+        bool open = detailsWin.Visible;
         double now = Time.GetTicksMsec() / 1000.0;
-        if (now < detailsAt && targetId == detailsTarget) return;
-        detailsAt = now + 1.5; detailsTarget = targetId;
+        if (now < detailsAt && (!open || targetId == detailsTarget)) return;
+        detailsAt = now + (open ? 1.5 : 5); detailsTarget = targetId;
         client.RequestDetails(targetId);
     }
 
@@ -92,6 +106,7 @@ public partial class Main
         if (Row(13) is var (mh, bh)) Line("Maximum health", mh != bh ? $"{mh}  (base {bh}, {Signed(mh - bh)})" : mh.ToString(), mh > bh ? good : mh < bh ? bad : null);
         if (Row(11) is var (m, mm)) Line("Mana", $"{m} / {mm}");
         if (Row(12) is var (vg, vm)) Line("Vigor", $"{vg}  (rest to {vm})");
+        if (Row(50) is var (gc, gh)) Line("Growth", gh > 0 ? $"{Math.Clamp(gc * 100.0 / gh, 0, 100):F0}% chance" : "-", null, "The chance that your next kill of a creature tougher than you adds a point of maximum health. It builds up with every such fight.");
         if (Row(14) is var (bk, bm)) Line("Bulk carried", $"{bk} / {bm}");
         if (Row(15) is var (wt, wm)) Line("Weight carried", $"{wt} / {wm}");
 

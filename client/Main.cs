@@ -285,6 +285,7 @@ public partial class Main : Node
         }
     }
 
+    ProgressBar growthBar;
     ulong loginAudioLogAt;
 
     /// <summary>The client starts maximized (switched on shortly after the window opens). F11 or the Interface window's "Full screen" switch toggles real full screen. M59_WINDOWED=1 starts in a plain window (tests).</summary>
@@ -1391,8 +1392,12 @@ public partial class Main : Node
         bars.AddChild(MakeBar("heal.bgf", new Color(0.78f, 0.16f, 0.16f), out barHealth, out txtHealth));
         bars.AddChild(MakeBar("ankh.bgf", new Color(0.20f, 0.38f, 0.90f), out barMana, out txtMana));
         bars.AddChild(MakeBar("bolticon.bgf", new Color(0.85f, 0.72f, 0.15f), out barVigor, out txtVigor));
+        growthBar = new ProgressBar { MinValue = 0, MaxValue = 1, Value = 0, ShowPercentage = false, CustomMinimumSize = new Vector2(0, 7), MouseFilter = Control.MouseFilterEnum.Stop, TooltipText = "Growth" };
+        growthBar.AddThemeStyleboxOverride("fill", new StyleBoxFlat { BgColor = new Color(0.55f, 0.35f, 0.85f) });
+        growthBar.AddThemeStyleboxOverride("background", new StyleBoxFlat { BgColor = new Color(0.1f, 0.1f, 0.14f, 0.9f) });
+        bars.AddChild(growthBar);
         cbox.AddChild(faceHolder); cbox.AddChild(bars);
-        statusWin = hudMgr.Add("status", client.CharacterName, cbox, new Vector2(0.01f, 0.12f), new Vector2(300, 118));
+        statusWin = hudMgr.Add("status", client.CharacterName, cbox, new Vector2(0.01f, 0.12f), new Vector2(300, 126));
 
         // --- target window: portrait + name of whatever you have selected (click it, or Tab to cycle). Health is not sent by the vanilla server for others.
         var tbox = new HBoxContainer();
@@ -1471,6 +1476,7 @@ public partial class Main : Node
         BuildDetailsUi();
         BuildKeysUi();
         hudMgr.FitSettingsWindows();
+        hudMgr.EnsureMinHeight("status", 126);
         BuildSpellWindows();
         BuildAdminWindow();
         itemWin.AddCloseButton();

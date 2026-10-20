@@ -4915,7 +4915,7 @@ messages:
    "Ids: 1-6 attributes (effective, raw), 7 karma, 10 health, 11 mana, 12 vigor (current, max), 13 max health (now, base), 14 bulk, 15 weight (current, max),"
    "20 offense (total, from gear and effects), 21 stroke skill, 22 proficiency, 24 chance to hit the target (percent), 25 target defense,"
    "30 defense (total, from gear and effects), 31 parry, 32 block, 33 dodge, 34 chance the target hits us (percent), 35 target offense,"
-   "36 universal modifier percent, 40 resistance (attack type, value; weapon types positive, spell types negative)."
+   "36 universal modifier percent, 50 growth (gain chance counter, high mark), 40 resistance (attack type, value; weapon types positive, spell types negative)."
    {
       local lRows, i, oWeapon, iStroke, iProf, iOff, iDef, iBase, iParry, iBlock, iDodge, iTDef, iTOff, iChance, iCount;
 
@@ -4975,6 +4975,8 @@ messages:
       lRows = Cons([32,iBlock,0],lRows);
       lRows = Cons([33,iDodge,0],lRows);
       lRows = Cons([36,piFlags3,0],lRows);
+      % growth: the hidden counter behind gaining maximum health (Player.AdvancementCheck): each kill of a tougher creature rolls random(1,high mark) against it
+      lRows = Cons([50,Send(self,@GetGainChance),Send(self,@GetHighMark)],lRows);
 
       if oTarget <> $
       {

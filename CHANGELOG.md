@@ -10,6 +10,9 @@ Newest first. Each push to GitHub gets an entry.
 - **Who**: the list of players who are online, kept up to date as people come and go. Double-click a name (or "Send mail") to write to them.
 - **Guild**: your guild's name, your rank and its members, with Invite target, Exile, Leave, Hand over and Disband (greyed out when your rank may not do it). When the server offers to found a guild you can pick the name and the five rank titles.
 
+### Growth bar
+- A thin purple **growth bar** under the vigor bar in your character window shows the hidden counter behind getting tougher: the chance (shown in the tooltip and in the Stats window) that your next kill of a creature tougher than you adds a point of maximum health. Killing weaker creatures sets it back. It refreshes every few seconds (our server only).
+
 ### Details (stats) window
 - New **Stats** button on the top bar opens a window with the numbers the server keeps behind the character, refreshed every 1.5 seconds: attributes (current value, base value and what effects such as Bless add or take away, in green or red), vitals (health, mana, vigor, carried bulk and weight), **offense** and **defense** ratings with what gear and effects contribute, weapon skill and proficiency, the **universal bonus**, your **chance to hit the creature you have targeted and its chance to hit you** (the server's own hit formula, 10 to 95 percent), and your **resistances and weaknesses** by attack type.
 - Works with our server only (new extension message `EXT_MSG_DETAILS`); damage per hit, regeneration and more are planned.
