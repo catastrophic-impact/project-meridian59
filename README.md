@@ -31,7 +31,7 @@ game-play changes on top (a DAoC / WoW style direction).
 * **Groups** (up to 5) with invites, a shared health/mana window and target health.
 * **Companion bots** — summon a **mage, healer, tank or fighter** that joins your group and never friendly-fires:
   strength from your "effective level"; spells limited by what *your* character could actually learn (the game's own learning rules);
-  their own mana (they rest with you); healers heal and keep the group buffed; tanks tank and taunt; fighters shoot a bow and fight in melee up close; bots sprint, path around walls, react the moment a
+  their own mana (they rest with you); healers heal and keep the group buffed; tanks tank and taunt; fighters shoot a bow (about as well as a new player with a bow, growing with your level) and fight in melee up close; bots sprint, path around walls, react the moment a
   mob aggros you, and take **attack / passive / assist** orders (draggable to the hotbar).  They get gender-matched first names.
 * **Extension protocol** (optional, ignored by other clients): group state, buff timers, target health, damage and heal numbers, weather, the wielded weapon, detailed character numbers.
 

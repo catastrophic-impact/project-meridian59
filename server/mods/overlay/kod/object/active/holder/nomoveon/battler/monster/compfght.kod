@@ -25,11 +25,12 @@ messages:
 
    AdjustStats()
    {
-      % a fighter hits a little harder than a mage but is not as tough as a tank
+      % A fighter is as good as a player who was just handed a bow: a plain arrow does 1 to 5 and it has no archery
+      % skill. It only gets better as its master's ECL grows (a little extra damage per level).
       piOffense = 120 + (piEcl * 10);
       piDefense = 100 + (piEcl * 8);
-      piMinDamage = 2 + (piEcl / 8);
-      piMaxDamage = 4 + (piEcl / 3);
+      piMinDamage = 1 + (piEcl / 20);
+      piMaxDamage = 5 + (piEcl / 10);
 
       return;
    }
@@ -40,6 +41,12 @@ messages:
       send(self,@SetTroopArmor,#NewArmor=create(&LeatherArmor));
 
       return;
+   }
+
+   GetAttackTime()
+   "A player can shoot about once a second, so does the fighter."
+   {
+      return 1000 + Random(0,200);
    }
 
    IsRanged()

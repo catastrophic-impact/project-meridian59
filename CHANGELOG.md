@@ -5,6 +5,7 @@ Newest first. Each push to GitHub gets an entry.
 ## Unreleased
 
 - Hotbar window no longer taller than its slots (slots look square again).
+- Fighter companion matches a player who was just handed a bow: arrows 1-5 (a little more per level of its master's ECL), one shot per second. It used to hit for ~8 every 1.5 s.
 - Group window: the targeted member is framed, dead / away members are dimmed and labelled, no "In a group of N" line.
 
 ### Mail, Who and Guild windows
