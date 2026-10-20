@@ -7,9 +7,9 @@ game-play changes on top (a DAoC / WoW style direction).
   terminal admin console (TUI) with a settings tab.  Everything is configurable at run time: death rules, reagent rules,
   mob aggro, group size, companion bots and more.
 * **Client** — a new client written with the Godot 4 engine (C#), re-using the protocol / file-format library of
-  [meridian59-dotnet](https://github.com/OpenMeridian/meridian59-dotnet).  Real-time lighting, lifts, water, group window, buff bar,
-  floating combat text, a full-screen map and more.
-* **Companion bots** — temporary mage / healer / tank helpers that join your group (server side, part of the server module).
+  [meridian59-dotnet](https://github.com/OpenMeridian/meridian59-dotnet).  Real-time lighting, lifts, doors, water, weather, group window, buff bar,
+  floating combat text, shops and trading, mail, a full-screen map and more.
+* **Companion bots** — temporary mage / healer / tank / fighter helpers that join your group (server side, part of the server module).
 
 > **The game assets (graphics, rooms, sounds) are not in this repository.**  Install the original game client and run
 > `tools/extract_assets.py` — see [docs/ASSETS.md](docs/ASSETS.md).
@@ -25,27 +25,33 @@ game-play changes on top (a DAoC / WoW style direction).
 * **Logoff ghost** modes (off / die and go to the underworld / normal).  **Brax arena** pillar puzzle solves itself on a timer.
 * **Mob aggro** — WoW / DAoC style proximity aggro with a radius and line of sight, any number of mobs at once (original mode still selectable).
 * **Pathfinding for every monster** — breadth-first path over the room's walk grid when a mob is blocked, so mobs stop rubbing along walls.
+  The grid is the accurate one by default (setting *Walls / line of sight accuracy*), so mobs and bots take real doorways and corners.
+* **Weather** — rain in five strengths, thunderstorms, per-zone weather (deserts, caves, mines, sewers and the underworld never get any; the sandstorm spell is as in the original);
+  chances are settings. Sent to our client only; other clients just see the original rain / clear effects.
 * **Groups** (up to 5) with invites, a shared health/mana window and target health.
-* **Companion bots** — summon a **mage, healer or tank** that joins your group and never friendly-fires:
+* **Companion bots** — summon a **mage, healer, tank or fighter** that joins your group and never friendly-fires:
   strength from your "effective level"; spells limited by what *your* character could actually learn (the game's own learning rules);
-  their own mana (they rest with you); healers heal and keep the group buffed; tanks tank; bots sprint, path around walls, react the moment a
+  their own mana (they rest with you); healers heal and keep the group buffed; tanks tank and taunt; fighters shoot a bow and fight in melee up close; bots sprint, path around walls, react the moment a
   mob aggros you, and take **attack / passive / assist** orders (draggable to the hotbar).  They get gender-matched first names.
-* **Extension protocol** (optional, ignored by other clients): group state, buff timers, target health, damage and heal numbers.
+* **Extension protocol** (optional, ignored by other clients): group state, buff timers, target health, damage and heal numbers, weather, the wielded weapon.
 
 ### Admin console (terminal UI, mouse supported — `start-admin.sh`)
 
 Tabs: **Console** (run any admin command, quick buttons for status / who / users) · **Accounts** (create accounts and characters, suspend, kick,
-delete, details) · **Online** (who is connected, hang up sessions) · **Server** (start / stop / restart with save, save game, garbage collect, lock the game,
+delete, details) · **Online** (who is connected, hang up sessions) · **Server** (starts the server for you if it is down and offers to stop it when you quit; start / stop / restart with save, save game, garbage collect, lock the game,
 reload, memory / timers / usage) · **Game settings** (every rule above, with descriptions; changes apply at once and are saved) ·
 **Teleport** (move a player to any room) · **Bots** (start and stop load-test clients).
 
 ### Client
 
 * Godot 4 renderer for the original room, sprite and sound formats, with **real-time lighting ported from the original** — time of day,
-  sector light, torches and lamps, sun and moon, fog; wading in water; moving **lifts**; coloured and layered avatars; weapons, projectiles, effects.
-* **Buff / debuff bar** with time remaining, **floating combat text** and combat lines in the chat, **group & companion window**, hotbar for
-  spells, items, skills and companion orders, **full-screen map** with the original look and your own notes (saved per character),
+  sector light, torches and lamps, sun and moon, fog; wading in water; moving **lifts**; **doors and gates** the server opens and closes, walls and floors it re-textures;
+  coloured and layered avatars; weapons, projectiles, effects; **rain, thunderstorms and sandstorms** with an overcast sky.
+* **Buff / debuff bar** with time remaining, **floating combat text** and combat lines in the chat, **group window and a Bots window**, hotbar for
+  spells, items, skills and companion orders (the Attack button shows your wielded weapon), **full-screen map** with the original look and your own notes (saved per character),
   stamina rules for sprinting, character creation, server list, volume settings, admin tools window, optional debug log.
+* **Shops and trading** — right-click a merchant, banker or player in the Look window: buy, sell, make and answer offers, deposit and withdraw; **mail**, a **Who** list and a **Guild** window on the top bar.
+* **Third-person camera** that stays inside the room, **key remapping** (Interface window), windows you can move, resize and lock, UI scale.
 * Works with our server's extras; against other servers it still plays the base game (group, buff timers and combat numbers stay empty).
 
 ## Quick start
@@ -71,7 +77,7 @@ Details, manual build steps and requirements: [docs/BUILDING.md](docs/BUILDING.m
 | `client/` | **Client module**: the Godot project (C#) |
 | `lib/` | the meridian59-dotnet protocol / file format library used by the client (GPLv3) |
 | `tools/` | build scripts (`build_release.sh`, `build_server.sh`, `build_client.sh`, `setup_distrobox.sh`), `extract_assets.py`, developer helpers |
-| `docs/` | documentation |
+| `docs/` | documentation, including [docs/TESTING.md](docs/TESTING.md) (test flags and variables) |
 
 ## Licence
 

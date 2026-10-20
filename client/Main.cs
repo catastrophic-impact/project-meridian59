@@ -653,7 +653,7 @@ public partial class Main : Node
         if (chatPanel == null) BuildHud();
         if (!client.IsAdmin) { var aw = hudMgr?.Get("admin"); if (aw != null && aw.Visible) hudMgr.Toggle("admin"); }   // a saved layout must not show admin tools to a normal account
         if (optAdminWin && client.IsAdmin) { optAdminWin = false; if (hudMgr?.Get("admin")?.Content is TabContainer tc0) { tc0.CurrentTab = 1; RefreshAdminTargets(); } var aw0 = hudMgr?.Get("admin"); if (aw0 != null && !aw0.Visible) hudMgr.Toggle("admin"); if (adminFilter != null) adminFilter.Text = "cor"; FillAdminList(); }
-        hudMgr.Root.Visible = true;
+        hudMgr.Root.Visible = System.Environment.GetEnvironmentVariable("M59_HIDEHUD") != "1";   // M59_HIDEHUD=1: a clean view for screenshots
         foreach (var wn in (System.Environment.GetEnvironmentVariable("M59_OPENWIN") ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries)) { var hw = hudMgr.Get(wn); if (hw != null && !hw.Visible) { if (wn == "who") ToggleWho(); else if (wn == "mail") ToggleMail(); else if (wn == "guild") ToggleGuild(); else hudMgr.Toggle(wn); } }   // test hook
         if (buffRow != null) buffRow.Visible = true;
         if (miniMap != null) miniMap.SavePath = Path.GetFullPath(ProjectSettings.GlobalizePath("res://../userdata/map_" + (client.CharacterName ?? "x").Replace('/', '_') + ".json"));
@@ -1652,7 +1652,9 @@ public partial class Main : Node
     }
 
     // ---- first-person hands / weapon (BP_PLAYER_OVERLAY): drawn in a screen corner behind the HUD windows, animated like the original
-    class PovSlot { public int Hotspot; public uint Rid; public string File; public bool Once; public double Tick, Period; public int Group, Low, High, Final; public TextureRect View; public bool LogOnce = true; public byte Xlat; }
+    class PovSlot { public int Hotspot; public uint Rid; public string File; public bool Once; public double Tick, Period; public int Group, Low, High, Final; public TextureRect View; public bool LogOnce = true; public byte Xlat; public List<PovSub> Subs = new List<PovSub>(); }
+    /// <summary>An overlay on a first-person hand (the glow while casting), attached to a hotspot of the hand bitmap (official overlay.c DrawPlayerOverlayOverlays).</summary>
+    class PovSub { public int Hotspot; public string File; public byte Xlat; public bool Once; public double Tick, Period; public int Group, Low, High, Final; public TextureRect View; }
     readonly PovSlot[] pov = new PovSlot[2];
     Control povLayer;
     float PovScale = 1.8f;   // original bitmaps are drawn 1:1 in a ~640 px wide view; our view is bigger
@@ -1668,7 +1670,20 @@ public partial class Main : Node
         if (o.Animation is AnimationOnce ao) { p.Once = true; p.Period = ao.Period; p.Low = ao.GroupLow; p.High = ao.GroupHigh; p.Final = ao.GroupFinal; p.Group = ao.GroupLow; p.Tick = ao.Period; }
         else if (o.Animation is AnimationNone an) p.Group = an.Group;
         else p.Group = 1;
-        GD.Print($"[pov] slot {slot} hotspot={p.Hotspot} file={client.Resolve(o.OverlayFileRID)} anim={(p.Once ? $"once {p.Period}ms {p.Low}..{p.High} -> {p.Final}" : "none group " + p.Group)}");
+        foreach (var sv in p.Subs) sv.View?.QueueFree();
+        p.Subs.Clear();
+        foreach (var so in o.SubOverlays)
+        {
+            if (so.ResourceID == 0) continue;
+            var sub = new PovSub { Hotspot = so.HotSpot, File = ResolveFile(client.Resolve(so.ResourceID)), Xlat = so.ColorTranslation, Group = 1 };
+            if (so.Animation is AnimationOnce sao) { sub.Once = true; sub.Period = sao.Period; sub.Low = sao.GroupLow; sub.High = sao.GroupHigh; sub.Final = sao.GroupFinal; sub.Group = sao.GroupLow; sub.Tick = sao.Period; }
+            else if (so.Animation is AnimationNone san) sub.Group = san.Group;
+            if (sub.File == null) continue;
+            sub.View = new TextureRect { ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.Scale, TextureFilter = CanvasItem.TextureFilterEnum.Nearest, MouseFilter = Control.MouseFilterEnum.Ignore, Visible = false };
+            povLayer.AddChild(sub.View);
+            p.Subs.Add(sub);
+        }
+        GD.Print($"[pov] slot {slot} subs={p.Subs.Count} hotspot={p.Hotspot} file={client.Resolve(o.OverlayFileRID)} anim={(p.Once ? $"once {p.Period}ms {p.Low}..{p.High} -> {p.Final}" : "none group " + p.Group)}");
         if (p.View == null)
         {
             p.View = new TextureRect { ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.Scale, TextureFilter = CanvasItem.TextureFilterEnum.Nearest, MouseFilter = Control.MouseFilterEnum.Ignore };
@@ -1676,6 +1691,7 @@ public partial class Main : Node
         }
     }
 
+    static readonly bool PovHold = System.Environment.GetEnvironmentVariable("M59_POVHOLD") == "1";   // test: keep first-person hand animations on their first frame
     void UpdatePov(double dt)
     {
         if (povLayer == null) return;
@@ -1685,7 +1701,7 @@ public partial class Main : Node
         foreach (var p in pov)
         {
             if (p == null || p.View == null) continue;
-            if (p.Once)
+            if (p.Once && !PovHold)
             {
                 p.Tick -= dt * 1000.0;
                 if (p.Tick <= 0)
@@ -1705,6 +1721,24 @@ public partial class Main : Node
             p.View.Texture = e.Texture;
             p.View.Position = new Vector2(x + e.XOffset * PovScale, y + e.YOffset * PovScale);
             p.View.Size = new Vector2(w, h);
+            // overlays on the hand: placed at the hotspot of the hand bitmap with the same number
+            foreach (var sv in p.Subs)
+            {
+                if (sv.Once && !PovHold)
+                {
+                    sv.Tick -= dt * 1000.0;
+                    if (sv.Tick <= 0) { if (sv.Group >= sv.High) { sv.Once = false; sv.Group = sv.Final; } else sv.Group++; sv.Tick = sv.Period; }
+                }
+                var se = sv.Group >= 1 ? sprites.Get(sv.File, sv.Group, 0, sv.Xlat) : null;
+                bool hasHot = false; int hx = 0, hy = 0;
+                if (se != null) foreach (var hsp in e.HotSpots) if (Math.Abs(hsp.index) == sv.Hotspot) { hx = hsp.x; hy = hsp.y; hasHot = true; break; }
+                sv.View.Visible = se != null && (hasHot || sv.Hotspot == 0);
+                if (!sv.View.Visible) continue;
+                float k = (float)e.Shrink / se.Shrink;      // size of the overlay's pixels in hand pixels
+                sv.View.Texture = se.Texture;
+                sv.View.Position = p.View.Position + new Vector2(hx + se.XOffset, hy + se.YOffset) * PovScale;
+                sv.View.Size = new Vector2(se.Width * k, se.Height * k) * PovScale;
+            }
         }
     }
 

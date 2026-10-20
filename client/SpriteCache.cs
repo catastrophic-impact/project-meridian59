@@ -13,6 +13,7 @@ public class SpriteCache
         public ImageTexture Texture;
         public int Width, Height, Shrink = 1;
         public int XOffset, YOffset;
+        public List<(int index, int x, int y)> HotSpots = new List<(int, int, int)>();      // attachment points (negative index = drawn under)
     }
 
     readonly Dictionary<string, Entry> cache = new Dictionary<string, Entry>();
@@ -78,7 +79,9 @@ public class SpriteCache
             }
             var img = Image.CreateFromData(w, h, false, Image.Format.Rgba8, rgba);
             int shrink = (int)bgf.ShrinkFactor; if (shrink <= 0) shrink = 1;
-            return new Entry { Texture = ImageTexture.CreateFromImage(img), Width = w, Height = h, Shrink = shrink, XOffset = bmp.XOffset, YOffset = bmp.YOffset };
+            var entry = new Entry { Texture = ImageTexture.CreateFromImage(img), Width = w, Height = h, Shrink = shrink, XOffset = bmp.XOffset, YOffset = bmp.YOffset };
+            foreach (var hs in bmp.HotSpots) entry.HotSpots.Add((hs.Index, hs.X, hs.Y));
+            return entry;
         }
         catch (System.Exception ex)
         {

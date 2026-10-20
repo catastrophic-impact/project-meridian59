@@ -31,6 +31,7 @@ Flags (parsed at the top of `client/Main.cs`): `--connect user pw`, `--host`, `-
 | `M59_MAPMAX=1`, `M59_MAPALL=1`, `M59_TESTLIGHT=1`, `M59_DRAGDELTA=x,y`, `M59_LEAD=<seconds>` | map, lighting and drag tweaks |
 | `M59_AVATAR_SHEET=<dir>`, `M59_AVATAR_OBJ`, `M59_AVATAR_MOTION`, `M59_FACE_DEBUG=<file>` | dump avatar / face composites |
 | `M59_RESOURCE=<dir>` | use another resource folder |
+| `M59_HIDEHUD=1`, `M59_POVHOLD=1` | hide all windows for a clean screenshot; keep first-person hand animations on their first frame |
 
 Server side (`server/`): `M59_NO_AUTOSTART=1` stops the admin TUI from starting the server itself; `M59_ADMIN_HOST/PORT`, `M59_GAME_PORT`, `M59_BOX_NAME`, `M59_BOX_HOME`, `M59_UPSTREAM_URL`, `M59_ADMIN_VENV` are described in the scripts.
 

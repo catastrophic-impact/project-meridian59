@@ -10,6 +10,9 @@ Newest first. Each push to GitHub gets an entry.
 - **Who**: the list of players who are online, kept up to date as people come and go. Double-click a name (or "Send mail") to write to them.
 - **Guild**: your guild's name, your rank and its members, with Invite target, Exile, Leave, Hand over and Disband (greyed out when your rank may not do it). When the server offers to found a guild you can pick the name and the five rank titles.
 
+### Hand glow
+- While you cast a spell with bare hands, your hand glows as in the original (the server sends a glow overlay that sits on the hand's hotspot).
+
 ### Attack icon
 - The Attack button (hotbar and Skills list) now shows what you fight with: the weapon you wield, or the punch icon for bare hands, and its tooltip names it. The server tells the client which weapon is in use whenever you change equipment (new server message, our server only).
 
