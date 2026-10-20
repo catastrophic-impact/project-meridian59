@@ -1980,7 +1980,7 @@ public partial class Main : Node
         targetName.AddThemeColorOverride("font_color", col);
         targetInfo.Text = kind;
         Texture2D tex = null;
-        if (f.IsPlayer) tex = FaceComposer.Compose(ro, rid => ResolveFile(client.Resolve(rid)));
+        tex = FaceOf(ro);   // players, companions and bots all carry a head overlay: show the face, not just the torso
         if (tex == null)
         {
             var path = ResolveFile(client.Resolve(ro.OverlayFileRID));
@@ -2200,6 +2200,9 @@ public partial class Main : Node
         client.LookAt(s.ItemId);
     }
 
+    /// <summary>The composed face of anything with a head overlay (players, companions, playerbots), else null.</summary>
+    Texture2D FaceOf(RoomObject ro) => ro != null && ro.SubOverlays.Exists(so => so.HotSpot == 1 && so.ResourceID != 0) ? FaceComposer.Compose(ro, rid => ResolveFile(client.Resolve(rid))) : null;
+
     void OnLookReceived(uint id, string name, string desc, string inscription, uint overlayRid, ushort group)
     {
         if (silentLooks.Remove(id))
@@ -2213,7 +2216,8 @@ public partial class Main : Node
         if (itemWin == null) { if (!string.IsNullOrEmpty(desc)) AddChatLine(desc, "System"); return; }
         var path = overlayRid != 0 ? ResolveFile(client.Resolve(overlayRid)) : null;
         var e = path != null ? sprites.Get(path, group == 0 ? 1 : group) : null;
-        if (e != null) itemPic.Texture = e.Texture;
+        var face = FaceOf(client.Objects.Find(o => o.ID == id));
+        if (face != null) itemPic.Texture = face; else if (e != null) itemPic.Texture = e.Texture;
         if (!string.IsNullOrEmpty(name)) itemName.Text = name;
         string text = desc ?? "";
         if (!string.IsNullOrEmpty(inscription)) text += "\n\n" + inscription;
