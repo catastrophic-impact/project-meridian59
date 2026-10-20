@@ -2526,6 +2526,7 @@ messages:
       Send(poOwner,@SendSectorLightChanges,#who=self);
       Send(poOwner,@SendWallChanges,#who=self);
       Send(poOwner,@SendTextureChanges,#who=self);
+      Send(SYS,@SendWeatherTo,#who=self);
 
       return;
    }

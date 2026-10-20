@@ -284,7 +284,7 @@ public partial class Main : Node
     public override void _Process(double delta)
     {
         if (hud != null) hud.Visible = !onlineMode || (client != null && client.IsAdmin && audioSettings.ShowDebug);   // debug text: admins only, toggled in F6 > Debug
-        if (onlineMode) { OnlineProcess(); UpdatePov(delta); UpdateScreenEffects((float)delta); UpdateBuffBar(); UpdateDebugLog(); UpdateFloatTexts((float)delta); TradeTestTick(); } else UpdateRoomAnimations();
+        if (onlineMode) { OnlineProcess(); UpdatePov(delta); UpdateScreenEffects((float)delta); UpdateBuffBar(); UpdateDebugLog(); UpdateFloatTexts((float)delta); UpdateWeather((float)delta); TradeTestTick(); } else UpdateRoomAnimations();
 
         if (onlineMode && roomShown && currentRoom != null) WalkProcess((float)delta);
         if (autoSay != null && sayStage >= 0 && roomShown) DriveTypingTest();
@@ -486,7 +486,7 @@ public partial class Main : Node
         client.SunChanged += (i, a) => { RoomLight.SetSun(i, a); if (AnimLog) GD.Print($"[light] sun intensity {i} angle {a}"); };
         client.SoundRequested += (n, o, f, r, c, rad, mv) => { if (!optMute) audio.PlaySound(n, o, f, r, c, rad, mv); };
         client.MusicRequested += n => { if (!optMute) audio.PlayMusic(n); };
-        client.RoomChanging += () => { ClearPendingRoomChanges(); audio.RoomChanged(); ClearProjectiles(); ClearBgOverlays(); resyncRest = true; };
+        client.RoomChanging += () => { ResetWeather(); ClearPendingRoomChanges(); audio.RoomChanged(); ClearProjectiles(); ClearBgOverlays(); resyncRest = true; };
         client.ProjectileFired += OnProjectile;
         client.BackgroundChanged += SetBackground;
         client.BackgroundOverlayChanged += OnBackgroundOverlay;
@@ -1530,6 +1530,7 @@ public partial class Main : Node
         BuildSpellWindows();
         BuildAdminWindow();
         itemWin.AddCloseButton();
+        itemWin.Visible = false;   // the Look window only opens when something is looked at (a saved layout may have left it open)
         client.LookReceived += OnLookReceived;
         client.PlayerOverlayReceived += OnPlayerOverlay;
         client.InventoryChanged += RebuildInventory;

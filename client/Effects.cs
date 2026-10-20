@@ -100,6 +100,7 @@ public partial class Main
 
     void BuildEffectsLayer()
     {
+        BuildWeather();
         var layer = new CanvasLayer { Layer = 2 };            // above the first-person weapon (1), below the HUD (5)
         ColorRect full(Color c) { var r = new ColorRect { Color = c, MouseFilter = Control.MouseFilterEnum.Ignore, Visible = false }; r.SetAnchorsPreset(Control.LayoutPreset.FullRect); return r; }
         fxInvert = full(Colors.White);
@@ -146,7 +147,8 @@ public partial class Main
             case EffectRelease: fxParalyzed = false; break;
             case EffectBlind: fxBlindOn = true; break;
             case EffectSee: fxBlindOn = false; break;
-            default: break;   // blur, waver, weather, sand: not drawn yet
+            case EffectRaining: case EffectSnowing: case EffectClearWeather: case EffectSand: case EffectClearSand: OnWeatherEffect(ef); break;
+            default: break;   // blur, waver: not drawn yet
         }
     }
 
@@ -180,6 +182,6 @@ public partial class Main
     {
         fxPain = fxWhiteout = fxFlashMs = fxInvertMs = fxShake = 0; fxBlindOn = false; fxParalyzed = false;
         if (cam != null) { cam.HOffset = 0; cam.VOffset = 0; }
-        ClearProjectiles(); ClearFloatTexts();
+        ClearProjectiles(); ClearFloatTexts(); ResetWeather();
     }
 }

@@ -4,6 +4,11 @@ Newest first. Each push to GitHub gets an entry.
 
 ## Unreleased
 
+### Weather
+- **Rain, snow and sandstorms** are now drawn by the client, outdoors only (nothing falls under a roof or indoors). The sandstorm spell uses the original's look.
+- The server makes rain come and go at random (snow in winter on the mainland, never in Ko'catan). New admin settings: Rain and snow on/off, chance to start and chance to go on per game hour (5 real minutes).
+- New Interface option "Weather (rain, snow, sand)" to turn it off.
+
 ### Companion bots
 - New **Fighter** bot: shoots a bow from up to 9 squares (no archery skill needed) and fights in melee when the enemy is close.
 - **Tank taunt**: enemies attacking other group members switch to the tank.

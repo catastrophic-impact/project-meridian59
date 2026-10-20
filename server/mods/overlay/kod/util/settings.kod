@@ -118,6 +118,11 @@ properties:
 
    % Companions jump to their master when they are far away or stuck.  Off = they must walk (for testing movement).
    pbCompanionTeleport = TRUE
+
+   % Custom weather: 1 = rain / snow comes and goes (drawn by our client outdoors), 0 = none.  Chances are per game hour (5 real minutes).
+   piWeatherMode = 1
+   piWeatherStartPct = 12
+   piWeatherContinuePct = 70
    piMobAggroRadius = 8
 
    % piAdvancementRate: Determines how fast or slow advancement goes for all
@@ -582,6 +587,21 @@ messages:
    GetCompanionTeleport()
    {
       return pbCompanionTeleport;
+   }
+
+   GetWeatherMode()
+   {
+      return piWeatherMode;
+   }
+
+   GetWeatherStartPct()
+   {
+      return piWeatherStartPct;
+   }
+
+   GetWeatherContinuePct()
+   {
+      return piWeatherContinuePct;
    }
 
    GetMobAggroMode()
