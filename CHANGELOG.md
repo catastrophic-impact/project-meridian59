@@ -5,6 +5,7 @@ Newest first. Each push to GitHub gets an entry.
 ## Unreleased
 
 - Hotbar window no longer taller than its slots (slots look square again).
+- Group window: the targeted member is framed, dead / away members are dimmed and labelled, no "In a group of N" line.
 
 ### Mail, Who and Guild windows
 - New top bar buttons: **Mail** (the original mailbox icon), **Who** and **Guild**.

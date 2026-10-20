@@ -24,7 +24,7 @@ public partial class Main
         grow.AddChild(inv); grow.AddChild(leave);
         gbox.AddChild(grow);
         groupInfo = new Label { Text = "Not in a group.", Modulate = new Color(1, 1, 1, 0.6f), AutowrapMode = TextServer.AutowrapMode.WordSmart };
-        gbox.AddChild(groupInfo);
+        gbox.AddChild(groupInfo);   // only visible while alone
         groupKick = new VBoxContainer(); groupKick.AddThemeConstantOverride("separation", 2);
         gbox.AddChild(groupKick);
         gbox.AddChild(groupRows);
@@ -85,6 +85,7 @@ public partial class Main
     void OnGroupChanged()
     {
         if (groupRows == null) return;
+        memberRows.Clear();
         foreach (var c in groupRows.GetChildren()) { groupRows.RemoveChild(c); c.QueueFree(); }
         foreach (var c in companionRows.GetChildren()) { companionRows.RemoveChild(c); c.QueueFree(); }
         foreach (var c in groupKick.GetChildren()) { groupKick.RemoveChild(c); c.QueueFree(); }
@@ -95,14 +96,17 @@ public partial class Main
         {
             var row = new Button { ClipContents = true, Flat = true, Alignment = HorizontalAlignment.Left, CustomMinimumSize = new Vector2(0, 40), TooltipText = "Click to target. Heal or buff them with the usual spells." };
             uint id = m.Id; row.Pressed += () => TargetMember(id);
+            bool dead = m.MaxHp > 0 && m.Hp <= 0, away = m.Id != client.PlayerId && !client.Objects.Exists(o => o.ID == m.Id);
+            memberRows.Add((id, row));
             var v = new VBoxContainer(); v.AddThemeConstantOverride("separation", 1); v.MouseFilter = Control.MouseFilterEnum.Ignore; v.SetAnchorsPreset(Control.LayoutPreset.FullRect);
             string tag = m.Kind == 2 ? $"  [{(m.Role >= 1 && m.Role <= 4 ? RoleNames[m.Role] : "bot")}]" : "";
-            var name = new Label { Text = (m.Id == client.GroupLeader ? "* " : "") + m.Name + tag, MouseFilter = Control.MouseFilterEnum.Ignore };
+            var name = new Label { Text = (m.Id == client.GroupLeader ? "* " : "") + m.Name + tag + (dead ? "  (dead)" : away ? "  (away)" : ""), MouseFilter = Control.MouseFilterEnum.Ignore };
             name.AddThemeFontSizeOverride("font_size", 14);
             v.AddChild(name);
             v.AddChild(MakeMiniBar(m.Hp, m.MaxHp, new Color(0.8f, 0.15f, 0.15f)));
             if (m.MaxMana > 0) v.AddChild(MakeMiniBar(m.Mana, m.MaxMana, new Color(0.25f, 0.45f, 0.95f)));
             row.AddChild(v);
+            if (dead || away) row.Modulate = new Color(1, 1, 1, dead ? 0.5f : 0.65f);
             groupRows.AddChild(row);
             if (imLeader && m.Id != client.PlayerId)
             {
@@ -111,7 +115,8 @@ public partial class Main
                 (m.Kind == 2 ? companionRows : groupKick).AddChild(kick);
             }
         }
-        groupInfo.Text = members.Count > 1 ? $"In a group of {members.Count}." : "Not in a group.";
+        UpdateMemberHighlight();
+        groupInfo.Visible = members.Count <= 1;
     }
 
     static ProgressBar MakeMiniBar(int cur, int max, Color col)
@@ -122,16 +127,37 @@ public partial class Main
         return b;
     }
 
+    readonly List<(uint id, Button row)> memberRows = new();
+    uint highlightedFor = uint.MaxValue;
+    /// <summary>The targeted member's row gets a frame, so heals from the hotbar are clearly going to them.</summary>
+    void UpdateMemberHighlight()
+    {
+        highlightedFor = targetId;
+        var sel = new StyleBoxFlat { BgColor = new Color(0.3f, 0.5f, 0.9f, 0.25f), BorderColor = new Color(0.5f, 0.7f, 1f, 0.9f) }; sel.SetBorderWidthAll(1);
+        foreach (var (id, row) in memberRows)
+        {
+            if (id == targetId) { row.Flat = false; foreach (var n in new[] { "normal", "hover", "pressed", "focus" }) row.AddThemeStyleboxOverride(n, sel); }
+            else { row.Flat = true; foreach (var n in new[] { "normal", "hover", "pressed", "focus" }) row.RemoveThemeStyleboxOverride(n); }
+        }
+    }
+
     void TargetMember(uint id)
     {
-        if (id == client.PlayerId || client.Objects.Exists(o => o.ID == id)) targetId = id;
+        if (id == client.PlayerId || client.Objects.Exists(o => o.ID == id)) { targetId = id; UpdateMemberHighlight(); }
         else AddChatLine("That group member is not in this room.", "System");
     }
 
     /// <summary>Once a second: ask the server for the health of the target (our own server only).</summary>
     double groupTestAt;
+    string awaySig = "";
     void PollTargetHealth()
     {
+        if (highlightedFor != targetId) UpdateMemberHighlight();
+        if (client.Group.Count > 1)
+        {
+            string sig = string.Concat(client.Group.ConvertAll(m => client.Objects.Exists(o => o.ID == m.Id) ? "1" : "0"));
+            if (sig != awaySig) { awaySig = sig; OnGroupChanged(); }
+        }
         if (System.Environment.GetEnvironmentVariable("M59_GROUPTEST") == "invite" && roomShown && groupTestAt == 0) groupTestAt = Time.GetTicksMsec() + 6000;
         var gt = System.Environment.GetEnvironmentVariable("M59_GROUPTEST");
         if (gt != null && gt.StartsWith("companion") && roomShown && groupTestAt == 0) groupTestAt = Time.GetTicksMsec() + 6000;
