@@ -18,6 +18,7 @@ Newest first. Each push to GitHub gets an entry.
 - The client moves other creatures through every position the server reports, and teleports appear instantly instead of sliding through walls.
 
 ### Client
+- **Doors and animated walls**: the client now follows the server's wall changes (guild hall doors, secret walls, clock faces): texture changes, one-shot and looping animations, and walls that become passable, impassable or invisible.
 - Top bar has separate **Bots** and **Group** buttons.
 - Group state is cleared when you log in with another account.
 - Interface window is scrollable and resizable.

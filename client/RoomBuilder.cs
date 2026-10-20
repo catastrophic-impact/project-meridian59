@@ -39,6 +39,11 @@ public class RoomBuilder
     readonly TextureCache tex;
     readonly Dictionary<(long, int), Surf> surfs = new Dictionary<(long, int), Surf>();
 
+    /// <summary>Walls the server animates (BP_WALL_ANIMATE: doors, secret walls): sidedef server ids built as their own mesh, and the texture group each currently shows.</summary>
+    public HashSet<int> DynWalls; public Dictionary<int, int> WallGroups;
+    bool IsDynWall(int sdNum) => DynWalls != null && sdNum > 0 && sdNum <= room.SideDefs.Count && room.SideDefs[sdNum - 1].ServerId != 0 && DynWalls.Contains(room.SideDefs[sdNum - 1].ServerId);
+    int GroupOf(RoomSideDef sd) => WallGroups != null && sd.ServerId != 0 && WallGroups.TryGetValue(sd.ServerId, out var g) ? g : 0;
+
     // anim codes (part of the surface key so animated surfaces get their own material):
     //  0 none | (1<<16)|speed cycle | (2<<16)|(speed<<8)|(dir<<4)|backwards wall scroll | (3<<16)|(speed<<8)|dir floor/ceiling scroll
     int CycleCode(int bmp, byte speed) => speed != 0 && bmp > 0 && tex.Groups(bmp) > 1 ? (1 << 16) | speed : 0;
@@ -54,11 +59,11 @@ public class RoomBuilder
 
     public static Vector3 P(float x, float y, float z) => new Vector3(x * S, z * S, y * S);
 
-    static long Key(int bmp, bool cutout, bool wall, bool noHTile = false) => ((long)bmp << 3) | (cutout ? 1L : 0L) | (wall ? 2L : 0L) | (noHTile ? 4L : 0L);
+    static long Key(int bmp, bool cutout, bool wall, bool noHTile = false, int group = 0) => ((long)bmp << 3) | (cutout ? 1L : 0L) | (wall ? 2L : 0L) | (noHTile ? 4L : 0L) | ((long)(group & 0xFF) << 40);
 
-    Surf Get(int bmp, bool cutout, bool wall = false, bool noHTile = false, int anim = 0)
+    Surf Get(int bmp, bool cutout, bool wall = false, bool noHTile = false, int anim = 0, int group = 0)
     {
-        var k = (Key(bmp, cutout, wall, noHTile), anim);
+        var k = (Key(bmp, cutout, wall, noHTile, group), anim);
         if (!surfs.TryGetValue(k, out var s)) surfs[k] = s = new Surf();
         return s;
     }
@@ -66,9 +71,9 @@ public class RoomBuilder
     /// <summary>Per-vertex light data for the room shader (see RoomLight): r = sector light, b = 1 if the sun shades this surface by its direction.</summary>
     static Color Shade(RoomSector sec, bool directional = false) => new Color(Mathf.Clamp(sec.Light / 255f, 0f, 1f), 0f, directional ? 1f : 0f);
 
-    void Quad(int bmp, bool cutout, Vector3[] v, Vector2[] uv, Color c, Vector3 facing, bool noHTile = false, int anim = 0)
+    void Quad(int bmp, bool cutout, Vector3[] v, Vector2[] uv, Color c, Vector3 facing, bool noHTile = false, int anim = 0, int group = 0)
     {
-        var s = Get(bmp, cutout, true, noHTile, anim);
+        var s = Get(bmp, cutout, true, noHTile, anim, group);
         int b = s.V.Count;
         var nrm = facing.Normalized();
         for (int i = 0; i < 4; i++) { s.V.Add(v[i]); s.UV.Add(uv[i]); s.C.Add(c); s.N.Add(nrm); }
@@ -105,8 +110,8 @@ public class RoomBuilder
             arr[(int)Mesh.ArrayType.Index] = s.I.ToArray();
             mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arr);
             long surfKey = kv.Key.Item1; int animCode = kv.Key.Item2;
-            int bmpId = (int)(surfKey >> 3); bool cut = (surfKey & 1) != 0; bool isWall = (surfKey & 2) != 0; bool noH = (surfKey & 4) != 0;
-            var e = bmpId > 0 ? tex.Get(bmpId, cut) : null;
+            int bmpId = (int)((surfKey >> 3) & 0xFFFFFFFFL); int grp = (int)((surfKey >> 40) & 0xFF); bool cut = (surfKey & 1) != 0; bool isWall = (surfKey & 2) != 0; bool noH = (surfKey & 4) != 0;
+            var e = bmpId > 0 ? tex.Get(bmpId, cut, grp) : null;
             bool repeat = !noH || (animCode >> 16) >= 2;
             var m = new ShaderMaterial { Shader = RoomLight.GetShader(isWall, repeat) };
             if (e != null) { m.SetShaderParameter("tex", e.Texture); m.SetShaderParameter("cutout", e.HasAlpha); }
@@ -184,7 +189,7 @@ public class RoomBuilder
     {
         foreach (var w in room.Walls)
         {
-            if (dyn != null && (dyn.Contains(w.PosSector) || dyn.Contains(w.NegSector)) != dynPass) continue;
+            if (dyn != null && (dyn.Contains(w.PosSector) || dyn.Contains(w.NegSector) || IsDynWall(w.PosSideDef) || IsDynWall(w.NegSideDef)) != dynPass) continue;
             Side(w, w.PosSideDef, w.PosSector, w.NegSector, w.PosXOff, w.PosYOff, true, w.NegSideDef);
             Side(w, w.NegSideDef, w.NegSector, w.PosSector, w.NegXOff, w.NegYOff, false, w.PosSideDef);
         }
@@ -291,7 +296,7 @@ public class RoomBuilder
         Quad(bmp, cutout,
              new[] { P(ax, ay, z0), P(ax, ay, z1), P(bx, by, z2), P(bx, by, z3) },
              new[] { new Vector2(sA, tv0), new Vector2(sA, tv1), new Vector2(sB, tv2), new Vector2(sB, tv3) },
-             Shade(sec, true), facing, part == WallPart.Normal && (sd.Flags & WF_NO_HTILE) != 0 && cutout, anim);
+             Shade(sec, true), facing, part == WallPart.Normal && (sd.Flags & WF_NO_HTILE) != 0 && cutout, anim, GroupOf(sd));
     }
 
     /// <summary>A reasonable place to start looking at the room.</summary>

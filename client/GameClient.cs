@@ -214,6 +214,7 @@ public class GameClient
         }
     }
 
+    public event Action<ushort, Animation, byte> WallAnimated;   // sidedef server id, animation, end action (0 none, 1 passable, 2 impassable, 3 invisible + passable)
     public event Action<byte, ushort, ushort, byte> SectorMoved;   // type (4 floor lift, 5 ceiling lift), server sector id, destination height (kod units), speed (kod units per second; 0 = at once)
     public event Action<int, int> SunChanged;       // intensity 0-64, angle 0-4095
     public byte AmbientLight, ViewerLight;
@@ -420,6 +421,9 @@ public class GameClient
 
             case GenericGameMessage gx when gx.PI == 250:
                 try { HandleExt(gx.Data); } catch (Exception ex) { Log?.Invoke("ext message error: " + ex.Message); }
+                break;
+            case WallAnimateMessage wam:
+                WallAnimated?.Invoke(wam.SideDefServerID, wam.Animation, (byte)wam.Action);
                 break;
             case SectorMoveMessage smv:
                 SectorMoved?.Invoke((byte)smv.SectorMove.Type, smv.SectorMove.SectorNr, smv.SectorMove.Height, smv.SectorMove.Speed);

@@ -481,6 +481,7 @@ public partial class Main : Node
         audio.ListenerPos = () => walker != null ? RoomBuilder.P(walker.X, walker.Y, 0) : (Vector3?)null;
         LoadAudioSettings();
         client.SectorMoved += OnSectorMoved;
+        client.WallAnimated += OnWallAnimated;
         client.LightingChanged += (a, v) => { RoomLight.Set(a, v); if (AnimLog) GD.Print($"[light] ambient {a} viewer {v}"); };
         client.SunChanged += (i, a) => { RoomLight.SetSun(i, a); if (AnimLog) GD.Print($"[light] sun intensity {i} angle {a}"); };
         client.SoundRequested += (n, o, f, r, c, rad, mv) => { if (!optMute) audio.PlaySound(n, o, f, r, c, rad, mv); };
@@ -749,7 +750,7 @@ public partial class Main : Node
         objectsRoot?.QueueFree();
         ClearLifts();
         currentRoom = RoomFile.Load(path);
-        var b = new RoomBuilder(currentRoom, textures);
+        var b = MakeBuilder(currentRoom);
         current = b.Build(); roomAnims = b.Anims; roomAnimStart = Time.GetTicksMsec();
         if (AnimLog) GD.Print($"[roomanim] {roomAnims.Count} animated materials: {roomAnims.FindAll(a => a.Cycle).Count} cycling, {roomAnims.FindAll(a => !a.Cycle).Count} scrolling");
         if (AnimLog) foreach (var a in roomAnims) GD.Print($"[roomanim]   texture {a.Bmp} {(a.Cycle ? "cycle" : "scroll")} {(a.Wall ? "wall" : "flat")} period {a.PeriodMs:F0} ms dx {a.Dx} dy {a.Dy}");

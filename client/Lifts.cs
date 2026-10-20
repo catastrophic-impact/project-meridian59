@@ -11,7 +11,7 @@ public partial class Main
     readonly HashSet<int> dynSectors = new HashSet<int>();
     Node3D dynNode; bool dynDirty; double dynRebuildAt;
 
-    void ClearLifts() { lifts.Clear(); dynSectors.Clear(); dynNode?.QueueFree(); dynNode = null; dynDirty = false; }
+    void ClearLifts() { ClearDoors(); lifts.Clear(); dynSectors.Clear(); dynNode?.QueueFree(); dynNode = null; dynDirty = false; }
 
     void OnSectorMoved(byte type, ushort id, ushort height, byte speed)
     {
@@ -41,7 +41,7 @@ public partial class Main
 
     void RebuildStaticRoom()
     {
-        var b = new RoomBuilder(currentRoom, textures);
+        var b = MakeBuilder(currentRoom);
         var node = b.Build(dynSectors, false);
         current?.QueueFree();
         current = node; roomAnims = b.Anims;
@@ -50,6 +50,7 @@ public partial class Main
 
     void UpdateLifts(float dt)
     {
+        UpdateDoors(dt);
         if (lifts.Count == 0 && !dynDirty) return;
         for (int i = lifts.Count - 1; i >= 0; i--)
         {
@@ -64,7 +65,7 @@ public partial class Main
         if (dynDirty && now >= dynRebuildAt)
         {
             dynDirty = false; dynRebuildAt = now + 50;      // at most 20 rebuilds per second
-            var node = new RoomBuilder(currentRoom, textures).Build(dynSectors, true);
+            var node = MakeBuilder(currentRoom).Build(dynSectors, true);
             dynNode?.QueueFree();
             dynNode = node;
             AddChild(dynNode);
