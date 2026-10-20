@@ -481,6 +481,7 @@ public partial class Main : Node
         audio.ListenerPos = () => walker != null ? RoomBuilder.P(walker.X, walker.Y, 0) : (Vector3?)null;
         LoadAudioSettings();
         client.SectorMoved += OnSectorMoved;
+        client.TextureChanged += OnTextureChanged;
         client.WallAnimated += OnWallAnimated;
         client.LightingChanged += (a, v) => { RoomLight.Set(a, v); if (AnimLog) GD.Print($"[light] ambient {a} viewer {v}"); };
         client.SunChanged += (i, a) => { RoomLight.SetSun(i, a); if (AnimLog) GD.Print($"[light] sun intensity {i} angle {a}"); };
@@ -786,13 +787,14 @@ public partial class Main : Node
 
         roomShown = true;
         ApplyPendingRoomChanges();
+        MailRoomReady();
         loginPanel.Visible = false; HideCharCreate();
         GetViewport().GuiReleaseFocus();
         if (chatPanel == null) BuildHud();
         if (!client.IsAdmin) { var aw = hudMgr?.Get("admin"); if (aw != null && aw.Visible) hudMgr.Toggle("admin"); }   // a saved layout must not show admin tools to a normal account
         if (optAdminWin && client.IsAdmin) { optAdminWin = false; if (hudMgr?.Get("admin")?.Content is TabContainer tc0) { tc0.CurrentTab = 1; RefreshAdminTargets(); } var aw0 = hudMgr?.Get("admin"); if (aw0 != null && !aw0.Visible) hudMgr.Toggle("admin"); if (adminFilter != null) adminFilter.Text = "cor"; FillAdminList(); }
         hudMgr.Root.Visible = true;
-        foreach (var wn in (System.Environment.GetEnvironmentVariable("M59_OPENWIN") ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries)) { var hw = hudMgr.Get(wn); if (hw != null && !hw.Visible) hudMgr.Toggle(wn); }   // test hook
+        foreach (var wn in (System.Environment.GetEnvironmentVariable("M59_OPENWIN") ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries)) { var hw = hudMgr.Get(wn); if (hw != null && !hw.Visible) { if (wn == "who") ToggleWho(); else if (wn == "mail") ToggleMail(); else if (wn == "guild") ToggleGuild(); else hudMgr.Toggle(wn); } }   // test hook
         if (buffRow != null) buffRow.Visible = true;
         if (miniMap != null) miniMap.SavePath = Path.GetFullPath(ProjectSettings.GlobalizePath("res://../userdata/map_" + (client.CharacterName ?? "x").Replace('/', '_') + ".json"));
         miniMap?.SetRoom(currentRoom, Path.GetFileName(path));
@@ -1527,6 +1529,7 @@ public partial class Main : Node
         BuildHotbar();
         BuildGroupUi();
         BuildTradeUi();
+        BuildSocialUi();
         BuildSpellWindows();
         BuildAdminWindow();
         itemWin.AddCloseButton();

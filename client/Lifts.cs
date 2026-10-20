@@ -33,6 +33,30 @@ public partial class Main
         dynDirty = true;
     }
 
+    /// <summary>BP_CHANGE_TEXTURE (official roomanim.c TextureChange): every wall / floor / ceiling with that server id gets the new texture.  Flags: 1 above, 2 normal, 4 below, 8 floor, 16 ceiling.</summary>
+    void OnTextureChanged(ushort id, ushort tex, uint flags)
+    {
+        if (currentRoom == null || !roomShown) { pendingTextures.Add((id, tex, flags)); return; }
+        int n = 0;
+        foreach (var sd in currentRoom.SideDefs)
+        {
+            if (sd.ServerId != id) continue;
+            if ((flags & 1) != 0) { sd.AboveBmp = tex; n++; }
+            if ((flags & 2) != 0) { sd.NormalBmp = tex; n++; }
+            if ((flags & 4) != 0) { sd.BelowBmp = tex; n++; }
+        }
+        foreach (var sec in currentRoom.Sectors)
+        {
+            if (sec.ServerId != id) continue;
+            if ((flags & 8) != 0) { sec.FloorBmp = tex; n++; }
+            if ((flags & 16) != 0) { sec.CeilingBmp = tex; n++; }
+        }
+        if (AnimLog) GD.Print($"[texture] id {id} -> {tex} flags {flags} ({n} surfaces)");
+        if (n == 0) return;
+        RebuildStaticRoom();
+        dynDirty = true;
+    }
+
     static void SetSectorHeight(RoomSector s, bool ceil, float kod)
     {
         ushort h = (ushort)Mathf.Clamp(Mathf.RoundToInt(kod), 0, 65535);

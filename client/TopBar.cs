@@ -42,6 +42,11 @@ public partial class Main
         icon("inventory.png", 32, 20, "Inventory (I)", () => ToggleTab(0));
         icon("spells.png", 32, 20, "Spells (B)", () => ToggleTab(1));
         icon("skills.png", 32, 20, "Skills (K)", () => ToggleTab(2));
+        var (mn, mp) = Frames("mail.png", 24, 20);
+        if (mn != null) mailBtn = hudMgr.AddBarIcon(mn, mp, "Mail", new Vector2(36, 30), () => ToggleMail());
+        else hudMgr.AddBarButton("Mail", "Read and write letters", () => ToggleMail());
+        hudMgr.AddBarButton("Who", "Players who are online", () => ToggleWho());
+        hudMgr.AddBarButton("Guild", "Your guild: members, invite, leave", () => ToggleGuild());
         hudMgr.AddBarSeparator();
         hudMgr.AddBarButton("Character", "Show / hide the character window", () => hudMgr.Toggle("status"));
         hudMgr.AddBarButton("Map", "Show / hide the map", () => hudMgr.Toggle("map"));

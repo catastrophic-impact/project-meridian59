@@ -19,10 +19,12 @@ public partial class Main
     // The server sends the state of the room's walls and lifts as soon as we enter, usually before our room has finished loading: keep those messages and apply them when it has.
     readonly List<(ushort id, Meridian59.Data.Models.Animation anim, byte action)> pendingWalls = new List<(ushort, Meridian59.Data.Models.Animation, byte)>();
     readonly List<(byte type, ushort id, ushort height, byte speed)> pendingLifts = new List<(byte, ushort, ushort, byte)>();
-    void ClearPendingRoomChanges() { pendingWalls.Clear(); pendingLifts.Clear(); }
+    readonly List<(ushort id, ushort tex, uint flags)> pendingTextures = new List<(ushort, ushort, uint)>();
+    void ClearPendingRoomChanges() { pendingWalls.Clear(); pendingLifts.Clear(); pendingTextures.Clear(); }
     void ApplyPendingRoomChanges()
     {
-        var w = pendingWalls.ToArray(); var l = pendingLifts.ToArray(); ClearPendingRoomChanges();
+        var w = pendingWalls.ToArray(); var l = pendingLifts.ToArray(); var t = pendingTextures.ToArray(); ClearPendingRoomChanges();
+        foreach (var x in t) OnTextureChanged(x.id, x.tex, x.flags);
         foreach (var x in w) OnWallAnimated(x.id, x.anim, x.action);
         foreach (var x in l) OnSectorMoved(x.type, x.id, x.height, x.speed);
     }

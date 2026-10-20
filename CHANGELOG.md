@@ -4,6 +4,15 @@ Newest first. Each push to GitHub gets an entry.
 
 ## Unreleased
 
+### Mail, Who and Guild windows
+- New top bar buttons: **Mail** (the original mailbox icon), **Who** and **Guild**.
+- **Mail**: read, reply, delete and write letters. Like the original client the letters are handed over by the server and kept on your side (`userdata/mail_<character>.json`). New mail is fetched when you log in and when the server says you have some, unread letters are marked and the Mail button turns yellow.
+- **Who**: the list of players who are online, kept up to date as people come and go. Double-click a name (or "Send mail") to write to them.
+- **Guild**: your guild's name, your rank and its members, with Invite target, Exile, Leave, Hand over and Disband (greyed out when your rank may not do it). When the server offers to found a guild you can pick the name and the five rank titles.
+
+### Room changes from the server
+- Walls, floors and ceilings that the server re-textures (for example the lit and unlit spires in the Brax arena) now change on screen (official BP_CHANGE_TEXTURE).
+
 ### Testing
 - Shop buying, selling to a merchant and player-to-player offers were tested end to end and work. New test hooks: `M59_TRADEITEM`, `M59_TRADEPLAYER`, and `M59_TRADEAUTO` now also answers offers.
 

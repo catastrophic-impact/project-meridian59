@@ -231,8 +231,32 @@ public class GameClient
     public void TradeAccept() { if (conn != null) Send(new AcceptOfferMessage()); }
     public void TradeCancel() { if (conn != null) Send(new CancelOfferMessage()); }
     public void TradeCounter(ObjectID[] items) { if (conn != null) Send(new ReqCounterOfferMessage(items)); }
+    // ---- who / mail / guild (official BP_PLAYERS, BP_MAIL, BP_LOOKUP_NAMES, UC_GUILD_*)
+    public class MailItem { public uint Num; public string Sender = "", Title = "", Text = ""; public uint Time; public List<string> Recipients = new List<string>(); }
+    readonly HashSet<string> mailSeen = new HashSet<string>();
+    public List<(uint id, string name)> Online { get; } = new List<(uint, string)>();
+    public event Action OnlineChanged;
+    public event Action<MailItem> MailReceived;
+    public event Action<uint[]> NamesResolved;
+    public event Action<GuildInfo> GuildInfoReceived;
+    public event Action<uint, uint> GuildAskReceived;        // cost of a normal / a secret guild
+    public void RequestPlayers() { if (conn != null) Send(new SendPlayersMessage()); }
+    public void RequestMail() { if (conn != null) Send(new ReqGetMailMessage()); }
+    public void LookupNames(string[] names) { if (conn != null) Send(new ReqLookupNamesMessage(names)); }
+    public void SendMail(uint[] to, string subject, string text) { if (conn != null) Send(new SendMailMessage(Array.ConvertAll(to, i => new ObjectID(i)), "Subject: " + subject + "\n" + text)); }
+    void UserCmd(UserCommand c) { if (conn != null) Send(new UserCommandMessage(c, Strings)); }
+    public void GuildRequest() => UserCmd(new UserCommandGuildInfoReq());
+    public void GuildInvite(uint id) => UserCmd(new UserCommandGuildInvite(new ObjectID(id)));
+    public void GuildExile(uint id) => UserCmd(new UserCommandGuildExile(new ObjectID(id)));
+    public void GuildAbdicate(uint id) => UserCmd(new UserCommandGuildAbdicate(new ObjectID(id)));
+    public void GuildSetRank(uint id, byte rank) => UserCmd(new UserCommandGuildSetRank(new ObjectID(id), rank));
+    public void GuildRenounce() => UserCmd(new UserCommandGuildRenounce());
+    public void GuildDisband() => UserCmd(new UserCommandGuildDisband());
+    public void GuildCreate(string name, string[] male, string[] female, bool secret) =>
+        UserCmd(new UserCommandGuildCreate(name, male[0], male[1], male[2], male[3], male[4], female[0], female[1], female[2], female[3], female[4], secret));
     public event Action<int, bool> WeatherReceived;   // rain intensity 0 (clear) .. 5 (downpour), thunderstorm
     public event Action<ushort, Animation, byte> WallAnimated;   // sidedef server id, animation, end action (0 none, 1 passable, 2 impassable, 3 invisible + passable)
+    public event Action<ushort, ushort, uint> TextureChanged;   // server id, new texture (bgf number), change flags (1 above, 2 normal, 4 below, 8 floor, 16 ceiling)
     public event Action<byte, ushort, ushort, byte> SectorMoved;   // type (4 floor lift, 5 ceiling lift), server sector id, destination height (kod units), speed (kod units per second; 0 = at once)
     public event Action<int, int> SunChanged;       // intensity 0-64, angle 0-4095
     public byte AmbientLight, ViewerLight;
@@ -286,7 +310,7 @@ public class GameClient
         user = username; password = pw;
         sentLogin = sentGame = sentChars = haveInfo = haveContents = requestedStats = false;
         Room = null; Objects = new List<RoomObject>(); AvatarBuffs.Clear(); RoomBuffs.Clear(); BuffTimes.Clear();
-        GroupLeader = 0; Group = new List<GroupMember>(); GroupChanged?.Invoke();
+        GroupLeader = 0; Group = new List<GroupMember>(); GroupChanged?.Invoke(); mailSeen.Clear(); Online.Clear();
         conn?.Disconnect();
         conn = new ServerConnection(Strings);
         State = Phase.Connecting;
@@ -449,6 +473,39 @@ public class GameClient
             case OfferCanceledMessage: OfferCanceledReceived?.Invoke(); break;
             case WallAnimateMessage wam:
                 WallAnimated?.Invoke(wam.SideDefServerID, wam.Animation, (byte)wam.Action);
+                break;
+            case PlayersMessage pls:
+                Online.Clear(); foreach (var op in pls.OnlinePlayers) Online.Add((op.ID, op.Name));
+                OnlineChanged?.Invoke();
+                break;
+            case PlayerAddMessage pad:
+                Online.RemoveAll(x => x.id == pad.NewOnlinePlayer.ID); Online.Add((pad.NewOnlinePlayer.ID, pad.NewOnlinePlayer.Name));
+                OnlineChanged?.Invoke();
+                break;
+            case PlayerRemoveMessage prm:
+                Online.RemoveAll(x => x.id == prm.ObjectID);
+                OnlineChanged?.Invoke();
+                break;
+            case MailMessage mm:
+                {
+                    var ml = mm.Mail;
+                    // two requests in a row (login + "you have new mail") bring the same letters twice: keep one and delete each only once (the server deletes by position in its list)
+                    if (!mailSeen.Add(ml.Timestamp + "|" + ml.Sender + "|" + ml.Title + "|" + ml.Message.FullString)) break;
+                    MailReceived?.Invoke(new MailItem { Num = ml.Num, Sender = ml.Sender, Title = ml.Title, Text = ml.Message.FullString, Time = ml.Timestamp, Recipients = new List<string>(ml.Recipients) });
+                    Send(new DeleteMailMessage(ml.Num));       // like the original client: the mail now lives on our side
+                }
+                break;
+            case LookupNamesMessage lnm:
+                NamesResolved?.Invoke(Array.ConvertAll(lnm.ResolvedIDs, o => o.ID));
+                break;
+            case UserCommandMessage ucm when ucm.Command is UserCommandGuildInfo gic:
+                GuildInfoReceived?.Invoke(gic.GuildInfo);
+                break;
+            case UserCommandMessage ucm when ucm.Command is UserCommandGuildAsk gac:
+                GuildAskReceived?.Invoke(gac.Data.CostNormal, gac.Data.CostSecret);
+                break;
+            case ChangeTextureMessage ctm:
+                TextureChanged?.Invoke(ctm.TextureChangeInfo.ServerID, ctm.TextureChangeInfo.TextureNum, ctm.TextureChangeInfo.Flags.Flags);
                 break;
             case SectorMoveMessage smv:
                 SectorMoved?.Invoke((byte)smv.SectorMove.Type, smv.SectorMove.SectorNr, smv.SectorMove.Height, smv.SectorMove.Speed);
