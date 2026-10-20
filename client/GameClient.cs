@@ -214,6 +214,22 @@ public class GameClient
         }
     }
 
+    // trading (official offer.c / buy.c): buy lists, bank withdrawal lists and the offer / counteroffer dialogs
+    public event Action<ObjectBase, TradeOfferObject[], bool> BuyListReceived;      // seller, items with prices, true = bank withdrawal list
+    public event Action<ObjectBase, ObjectBase[]> OfferReceived;                    // someone offers us items (we are the receiver)
+    public event Action<ObjectBase[]> OfferedReceived;                              // our own offer was accepted by the server (items we offer)
+    public event Action<ObjectBase[]> CounterOfferReceived;                         // the other side answered with these items
+    public event Action<ObjectBase[]> CounterOfferedReceived;                       // the server confirms the items we gave in return
+    public event Action OfferCanceledReceived;
+    public void TradeRequestBuy(uint seller) { if (conn != null) Send(new ReqBuyMessage(seller)); }
+    public void TradeBuyItems(uint seller, ObjectID[] items) { if (conn != null) Send(new ReqBuyItemsMessage(seller, items)); }
+    public void TradeRequestWithdraw(uint banker) { if (conn != null) Send(new ReqWithdrawAlMessage(banker)); }
+    public void TradeWithdrawItems(uint banker, ObjectID[] items) { if (conn != null) Send(new ReqWithDrawAlItemsMessage(banker, items)); }
+    public void TradeOffer(uint to, ObjectID[] items) { if (conn != null) Send(new ReqOfferMessage(new ObjectID(to), items)); }
+    public void TradeDeposit(uint to, ObjectID[] items) { if (conn != null) Send(new ReqDepositMessage(new ObjectID(to), items)); }
+    public void TradeAccept() { if (conn != null) Send(new AcceptOfferMessage()); }
+    public void TradeCancel() { if (conn != null) Send(new CancelOfferMessage()); }
+    public void TradeCounter(ObjectID[] items) { if (conn != null) Send(new ReqCounterOfferMessage(items)); }
     public event Action<ushort, Animation, byte> WallAnimated;   // sidedef server id, animation, end action (0 none, 1 passable, 2 impassable, 3 invisible + passable)
     public event Action<byte, ushort, ushort, byte> SectorMoved;   // type (4 floor lift, 5 ceiling lift), server sector id, destination height (kod units), speed (kod units per second; 0 = at once)
     public event Action<int, int> SunChanged;       // intensity 0-64, angle 0-4095
@@ -422,6 +438,13 @@ public class GameClient
             case GenericGameMessage gx when gx.PI == 250:
                 try { HandleExt(gx.Data); } catch (Exception ex) { Log?.Invoke("ext message error: " + ex.Message); }
                 break;
+            case BuyListMessage bl: BuyListReceived?.Invoke(bl.TradePartner, bl.OfferedItems, false); break;
+            case WithdrawAlListMessage wl: BuyListReceived?.Invoke(wl.NPC, wl.Items, true); break;
+            case OfferMessage om: OfferReceived?.Invoke(om.TradePartner, om.OfferedItems); break;
+            case OfferedMessage od: OfferedReceived?.Invoke(od.OfferedItems); break;
+            case CounterOfferMessage co: CounterOfferReceived?.Invoke(co.OfferedItems); break;
+            case CounterOfferedMessage cd: CounterOfferedReceived?.Invoke(cd.OfferedItems); break;
+            case OfferCanceledMessage: OfferCanceledReceived?.Invoke(); break;
             case WallAnimateMessage wam:
                 WallAnimated?.Invoke(wam.SideDefServerID, wam.Animation, (byte)wam.Action);
                 break;

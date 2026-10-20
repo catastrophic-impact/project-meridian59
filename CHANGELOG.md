@@ -18,6 +18,7 @@ Newest first. Each push to GitHub gets an entry.
 - The client moves other creatures through every position the server reports, and teleports appear instantly instead of sliding through walls.
 
 ### Client
+- **Shops and trading**: new **Trade** button with Buy, Offer / sell, Deposit and Withdraw. Buy and withdraw show the seller's list with prices and amounts; offers to players or shop keepers open an offer window where the other side's answer appears and you accept or cancel.
 - **Doors and animated walls**: the client now follows the server's wall changes (guild hall doors, secret walls, clock faces): texture changes, one-shot and looping animations, and walls that become passable, impassable or invisible.
 - Gates and lifts now show the state the server sets when you enter a room (before, early messages were dropped and gates flickered between open and closed). New Interface option "Flashing wall textures" for walls that animate on their own.
 - Top bar has separate **Bots** and **Group** buttons.

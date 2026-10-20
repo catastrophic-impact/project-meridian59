@@ -284,7 +284,7 @@ public partial class Main : Node
     public override void _Process(double delta)
     {
         if (hud != null) hud.Visible = !onlineMode || (client != null && client.IsAdmin && audioSettings.ShowDebug);   // debug text: admins only, toggled in F6 > Debug
-        if (onlineMode) { OnlineProcess(); UpdatePov(delta); UpdateScreenEffects((float)delta); UpdateBuffBar(); UpdateDebugLog(); UpdateFloatTexts((float)delta); } else UpdateRoomAnimations();
+        if (onlineMode) { OnlineProcess(); UpdatePov(delta); UpdateScreenEffects((float)delta); UpdateBuffBar(); UpdateDebugLog(); UpdateFloatTexts((float)delta); TradeTestTick(); } else UpdateRoomAnimations();
 
         if (onlineMode && roomShown && currentRoom != null) WalkProcess((float)delta);
         if (autoSay != null && sayStage >= 0 && roomShown) DriveTypingTest();
@@ -1524,6 +1524,7 @@ public partial class Main : Node
         itemWin = hudMgr.Add("item", "Look", hrow, new Vector2(0.34f, 0.12f), new Vector2(430, 230), visibleByDefault: false);
         BuildHotbar();
         BuildGroupUi();
+        BuildTradeUi();
         BuildSpellWindows();
         BuildAdminWindow();
         itemWin.AddCloseButton();
