@@ -252,7 +252,32 @@ public class HudManager
         Save();
     }
 
-    public void Toggle(string id) { if (windows.TryGetValue(id, out var w)) { w.Visible = !w.Visible; if (w.Visible) w.GetParent().MoveChild(w, -1); Save(); } }
+    /// <summary>Settings windows that grow to show all of their widgets whenever they are opened (new settings are added over time; a saved smaller size must not hide them).</summary>
+    static readonly HashSet<string> fitWindows = new HashSet<string> { "interface", "keys" };
+
+    public void Toggle(string id)
+    {
+        if (!windows.TryGetValue(id, out var w)) return;
+        w.Visible = !w.Visible;
+        if (w.Visible) { w.GetParent().MoveChild(w, -1); if (fitWindows.Contains(id)) FitToContent(w); }
+        Save();
+    }
+
+    /// <summary>Called once all windows are filled: fit the settings windows that are already open.</summary>
+    public void FitSettingsWindows() { foreach (var id in fitWindows) if (windows.TryGetValue(id, out var w) && w.Visible) { w.GetParent().MoveChild(w, -1); FitToContent(w); } }
+
+    /// <summary>Make a scroll-based window tall (and wide) enough for everything in it, as far as the screen allows, and keep it on screen.</summary>
+    async void FitToContent(HudWindow w)
+    {
+        await Root.ToSignal(Root.GetTree(), SceneTree.SignalName.ProcessFrame);     // a window opened right after it was filled has no minimum size yet
+        if (w.Content is not ScrollContainer sc || sc.GetChildCount() == 0 || sc.GetChild(0) is not Control inner) return;
+        var need = inner.GetCombinedMinimumSize();
+        var screen = Root.GetViewportRect().Size;
+        float wantH = Mathf.Min(need.Y + 26 + 6 + 4, screen.Y - TopInset - 10), wantW = Mathf.Min(need.X + 12 + 14, screen.X - 20);
+        var size = new Vector2(Mathf.Max(w.Size.X, wantW), Mathf.Max(w.Size.Y, wantH));
+        w.Size = size;
+        w.Position = new Vector2(Mathf.Clamp(w.Position.X, 0, Mathf.Max(0, screen.X - size.X)), Mathf.Clamp(w.Position.Y, TopInset, Mathf.Max(TopInset, screen.Y - size.Y)));
+    }
 
     public void SetLocked(bool locked)
     {

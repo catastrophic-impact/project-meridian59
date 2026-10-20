@@ -1569,6 +1569,7 @@ public partial class Main : Node
         BuildTradeUi();
         BuildSocialUi();
         BuildKeysUi();
+        hudMgr.FitSettingsWindows();
         BuildSpellWindows();
         BuildAdminWindow();
         itemWin.AddCloseButton();
