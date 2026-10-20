@@ -6,7 +6,7 @@ using Godot;
 /// <summary>Music / sound volume sliders in the Interface window (F10), saved in userdata/audio.json.</summary>
 public partial class Main
 {
-    class AudioSettings { public double Music { get; set; } = 0.6; public double Sfx { get; set; } = 0.9; public bool ScrollWater { get; set; } = true; public bool ShowDebug { get; set; } = false; }
+    class AudioSettings { public double Music { get; set; } = 0.6; public double Sfx { get; set; } = 0.9; public bool ScrollWater { get; set; } = true; public bool CycleWalls { get; set; } = true; public bool ShowDebug { get; set; } = false; }
     AudioSettings audioSettings = new AudioSettings();
     string AudioPath => Path.GetFullPath(ProjectSettings.GlobalizePath("res://../userdata/audio.json"));
 
@@ -35,7 +35,10 @@ public partial class Main
         }
         var scroll = new CheckButton { Text = "Scrolling water / walls", ButtonPressed = audioSettings.ScrollWater, TooltipText = "The newer official client scrolls some water and wall textures (flagged in the room files); the old software client did not. Turn off for still water." };
         scroll.Toggled += on => { audioSettings.ScrollWater = on; SaveAudioSettings(); };
+        var cycle = new CheckButton { Text = "Flashing wall textures (gates)", ButtonPressed = audioSettings.CycleWalls, TooltipText = "Some walls, like iron gates, switch between texture frames several times a second, as in the original client. Turn off to show a still picture." };
+        cycle.Toggled += on => { audioSettings.CycleWalls = on; SaveAudioSettings(); };
         box.AddChild(scroll);
+        box.AddChild(cycle);
         box.AddChild(row("Music", audioSettings.Music, x => { audioSettings.Music = x; audio.SetMusicVolume((float)x); }));
         box.AddChild(row("Sound effects", audioSettings.Sfx, x => { audioSettings.Sfx = x; audio.SetSfxVolume((float)x); }));
     }

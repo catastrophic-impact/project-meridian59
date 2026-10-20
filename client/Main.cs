@@ -1226,7 +1226,7 @@ public partial class Main : Node
         {
             if (a.Cycle)
             {
-                int g = (int)(t / a.PeriodMs) % Math.Max(1, a.Groups);
+                int g = a.Wall && !audioSettings.CycleWalls ? 0 : (int)(t / a.PeriodMs) % Math.Max(1, a.Groups);
                 if (g == a.LastGroup) continue;
                 a.LastGroup = g;
                 if (AnimLog && roomAnimLogged++ < 12) GD.Print($"[roomanim] texture {a.Bmp} -> group {g} of {a.Groups} (period {a.PeriodMs:F0} ms)");
