@@ -23,8 +23,10 @@ public partial class Main
     bool Held(string action) => Input.IsKeyPressed(keymap[action]);
     bool Pressed(string action, InputEventKey k) => k.Keycode == keymap[action] || (action == "chat" && k.Keycode == Key.KpEnter);
 
+    bool keysLoaded;
     void LoadKeys()
     {
+        if (keysLoaded) return; keysLoaded = true;
         try
         {
             if (!File.Exists(KeysPath)) return;
@@ -71,8 +73,15 @@ public partial class Main
         hudMgr.InterfaceBox?.AddChild(open);
     }
 
+    // tooltips / hints that name a key follow the bindings
+    readonly List<(Control c, string text, string action)> keyTips = new List<(Control, string, string)>();
+    string KeyTip(string text, string action) => $"{text} ({KeyName(keymap[action])})";
+    T Tip<T>(T c, string text, string action) where T : Control { c.TooltipText = KeyTip(text, action); keyTips.Add((c, text, action)); return c; }
+
     void RefreshKeyButtons()
     {
+        foreach (var t in keyTips) if (IsInstanceValid(t.c)) t.c.TooltipText = KeyTip(t.text, t.action);
+        UpdateRestButton();
         foreach (var kv in keyButtons) kv.Value.Text = capturing == kv.Key ? "..." : KeyName(keymap[kv.Key]);
     }
 

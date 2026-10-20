@@ -10,6 +10,14 @@ Newest first. Each push to GitHub gets an entry.
 - **Who**: the list of players who are online, kept up to date as people come and go. Double-click a name (or "Send mail") to write to them.
 - **Guild**: your guild's name, your rank and its members, with Invite target, Exile, Leave, Hand over and Disband (greyed out when your rank may not do it). When the server offers to found a guild you can pick the name and the five rank titles.
 
+### Attack icon
+- The Attack button (hotbar and Skills list) now shows what you fight with: the weapon you wield, or the punch icon for bare hands, and its tooltip names it. The server tells the client which weapon is in use whenever you change equipment (new server message, our server only).
+
+### Cleanup
+- The client is quiet by default: the per-stat and unhandled-message lines are only printed with `M59_TRACE=1`.
+- Tooltips, the menu and the chat hint show your own key bindings.
+- New `docs/TESTING.md` lists every test flag and environment variable.
+
 ### Interface window
 - The Interface window now opens big enough to show all of its settings (it used to keep an old saved size and hide the newer ones), comes to the front, and stays on screen.
 

@@ -182,6 +182,9 @@ public class GameClient
     public void CompanionAssist() => SendExt(14, PlayerId, 0);
     public void CompanionDismiss(uint id) => SendExt(11, SelfOrZero(id), 0);
     public void RequestTargetHealth(uint id) => SendExt(20, SelfOrZero(id), 0);
+    public event Action<uint, byte> WeaponReceived;          // item id of the weapon we fight with (0 = bare hands), 1 melee / 2 ranged
+    public event Action EquipmentChanged;
+    public void RequestWeapon() => SendExt(21, PlayerId, 0);
 
     void HandleExt(byte[] d)
     {
@@ -200,6 +203,7 @@ public class GameClient
             case 2: { uint from = r.ReadUInt32(); GroupInviteReceived?.Invoke(from, Str()); break; }
             case 3: { uint id = r.ReadUInt32(); TargetHealthReceived?.Invoke(id, r.ReadByte()); break; }
             case 5: { uint v = r.ReadUInt32(), a = r.ReadUInt32(); int amt = r.ReadUInt16(); byte kind = r.ReadByte(); CombatNumberReceived?.Invoke(v, a, amt, kind); break; }
+            case 7: { uint wid = r.ReadUInt32(); WeaponReceived?.Invoke(wid, r.ReadByte()); break; }
             case 6: { int inten = r.ReadByte(); bool storm = r.ReadByte() != 0; WeatherReceived?.Invoke(inten, storm); break; }
             case 4:
                 {
@@ -561,7 +565,7 @@ public class GameClient
             case StatMessage st:
                 if (!Stats.TryGetValue(st.Group, out var grp)) Stats[st.Group] = grp = new Dictionary<byte, Stat>();
                 grp[st.Stat.Num] = st.Stat;
-                Log?.Invoke($"STAT update {st.Group} #{st.Stat.Num}" + (st.Stat is StatNumeric q ? $" = {q.ValueCurrent}/{q.ValueMaximum}" : ""));
+                if (Trace) Log?.Invoke($"STAT update {st.Group} #{st.Stat.Num}" + (st.Stat is StatNumeric q ? $" = {q.ValueCurrent}/{q.ValueMaximum}" : ""));
                 StatsChanged?.Invoke();
                 break;
 
@@ -573,7 +577,7 @@ public class GameClient
                     foreach (var stat in sg.Stats)
                     {
                         var sn = stat as StatNumeric;
-                        Log?.Invoke($"STATGROUP {sg.Group} num={stat.Num} {stat.Type} res={Resolve(stat.ResourceID)}" + (sn != null ? $" cur={sn.ValueCurrent} max={sn.ValueMaximum}" : ""));
+                        if (Trace) Log?.Invoke($"STATGROUP {sg.Group} num={stat.Num} {stat.Type} res={Resolve(stat.ResourceID)}" + (sn != null ? $" cur={sn.ValueCurrent} max={sn.ValueMaximum}" : ""));
                     }
                     StatsChanged?.Invoke();
                 }
@@ -599,17 +603,17 @@ public class GameClient
             case UseListMessage ul:
                 Equipped.Clear();
                 foreach (var e in ul.EquippedObjects) Equipped.Add(e.ID);
-                InventoryChanged?.Invoke();
+                InventoryChanged?.Invoke(); EquipmentChanged?.Invoke();
                 break;
 
             case UseMessage um:
                 Equipped.Add(um.NewEquippedItem.ID);
-                InventoryChanged?.Invoke();
+                InventoryChanged?.Invoke(); EquipmentChanged?.Invoke();
                 break;
 
             case UnuseMessage un:
                 Equipped.Remove(un.ID.ID);
-                InventoryChanged?.Invoke();
+                InventoryChanged?.Invoke(); EquipmentChanged?.Invoke();
                 break;
 
             case LookMessage lk:
@@ -707,7 +711,7 @@ public class GameClient
                 break;
 
             default:
-                Log?.Invoke("unhandled message " + m.GetType().Name);
+                if (Trace) Log?.Invoke("unhandled message " + m.GetType().Name);
                 break;
         }
 

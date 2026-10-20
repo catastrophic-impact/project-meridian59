@@ -23,25 +23,26 @@ public partial class Main
     void BuildTopBarButtons()
     {
         if (hudMgr == null) return;
+        LoadKeys();
         // rest / stand: the original stand.bmp has the standing figure on the left and the sitting figure on the right
         var sheet = LoadUiTexture("stand.png");
         if (sheet != null)
         {
             restStand = new AtlasTexture { Atlas = sheet, Region = new Rect2(0, 0, 36, 36) };
             restSit = new AtlasTexture { Atlas = sheet, Region = new Rect2(36, 0, 36, 36) };
-            restBtn = hudMgr.AddBarIcon(restStand, restSit, "Rest (R)", new Vector2(34, 34), () => SetResting(!resting));
+            restBtn = hudMgr.AddBarIcon(restStand, restSit, "Rest", new Vector2(34, 34), () => SetResting(!resting));
         }
-        else hudMgr.AddBarButton("Rest", "Rest (R)", () => SetResting(!resting));
+        else hudMgr.AddBarButton("Rest", KeyTip("Rest", "rest"), () => SetResting(!resting));
         hudMgr.AddBarSeparator();
 
-        void icon(string file, int w, int h, string tip, System.Action act)
+        void icon(string file, int w, int h, string tip, string action, System.Action act)
         {
             var (n, p) = Frames(file, w, h);
-            if (n != null) hudMgr.AddBarIcon(n, p, tip, new Vector2(w * 1.5f, h * 1.5f), act);
+            if (n != null) Tip(hudMgr.AddBarIcon(n, p, tip, new Vector2(w * 1.5f, h * 1.5f), act), tip, action);
         }
-        icon("inventory.png", 32, 20, "Inventory (I)", () => ToggleTab(0));
-        icon("spells.png", 32, 20, "Spells (B)", () => ToggleTab(1));
-        icon("skills.png", 32, 20, "Skills (K)", () => ToggleTab(2));
+        icon("inventory.png", 32, 20, "Inventory", "inventory", () => ToggleTab(0));
+        icon("spells.png", 32, 20, "Spells", "spells", () => ToggleTab(1));
+        icon("skills.png", 32, 20, "Skills", "skills", () => ToggleTab(2));
         var (mn, mp) = Frames("mail.png", 24, 20);
         if (mn != null) mailBtn = hudMgr.AddBarIcon(mn, mp, "Mail", new Vector2(36, 30), () => ToggleMail());
         else hudMgr.AddBarButton("Mail", "Read and write letters", () => ToggleMail());
@@ -57,6 +58,7 @@ public partial class Main
 
         hudMgr.AddBarButton("Interface", "Window lock, UI scale, volume (F10)", () => hudMgr.Toggle("interface"), right: true);
         hudMgr.AddBarButton("Menu", "Game menu (Esc)", () => ToggleGameMenu(), right: true);
+        UpdateRestButton();
     }
 
     /// <summary>Rest (sit) or stand; used by the R key and the top bar button.</summary>
@@ -98,6 +100,6 @@ public partial class Main
         restBtn.TextureNormal = resting ? restSit : restStand;
         restBtn.TextureHover = restBtn.TextureNormal;
         restBtn.TexturePressed = resting ? restStand : restSit;
-        restBtn.TooltipText = resting ? "Stand up (R)" : "Rest (R)";
+        restBtn.TooltipText = KeyTip(resting ? "Stand up" : "Rest", "rest");
     }
 }

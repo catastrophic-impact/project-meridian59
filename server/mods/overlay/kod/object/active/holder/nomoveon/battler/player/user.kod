@@ -4910,6 +4910,35 @@ messages:
       return;
    }
 
+   SendWeapon()
+   "Custom: which item we fight with (0 = bare hands, or a touch spell), and 1 melee / 2 ranged; our client shows it as the Attack icon."
+   {
+      local oWeapon, iId, iKind;
+
+      if NOT pbLogged_on OR poSession = $
+      {
+         return;
+      }
+
+      oWeapon = Send(self,@GetWeapon);
+      iId = 0;
+      iKind = 0;
+      if oWeapon <> $ AND IsClass(oWeapon,&Item)
+      {
+         iId = oWeapon;
+         iKind = 1;
+         if IsClass(oWeapon,&RangedWeapon)
+         {
+            iKind = 2;
+         }
+      }
+
+      AddPacket(1,BP_EXT_GAME, 1,EXT_MSG_WEAPON, 4,iId, 1,iKind);
+      SendPacket(poSession);
+
+      return;
+   }
+
    SendWeather(iIntensity = 0, bStorm = FALSE)
    "Custom: how hard it rains (0 clear .. 5 downpour) and whether it is a thunderstorm; our client draws it."
    {
@@ -5018,6 +5047,11 @@ messages:
       if iSub = EXT_CMD_COMPANION_ASSIST
       {
          Send(self,@CompanionOrder,#iOrder=iSub,#oTarget=oObj);
+      }
+
+      if iSub = EXT_CMD_WEAPON
+      {
+         Send(self,@SendWeapon);
       }
 
       if iSub = EXT_CMD_TARGET_HEALTH

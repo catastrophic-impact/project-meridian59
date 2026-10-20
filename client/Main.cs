@@ -286,7 +286,7 @@ public partial class Main : Node
     public override void _Process(double delta)
     {
         if (hud != null) hud.Visible = !onlineMode || (client != null && client.IsAdmin && audioSettings.ShowDebug);   // debug text: admins only, toggled in F6 > Debug
-        if (onlineMode) { OnlineProcess(); UpdatePov(delta); UpdateScreenEffects((float)delta); UpdateBuffBar(); UpdateDebugLog(); UpdateFloatTexts((float)delta); UpdateWeather((float)delta); TradeTestTick(); } else UpdateRoomAnimations();
+        if (onlineMode) { OnlineProcess(); UpdatePov(delta); UpdateScreenEffects((float)delta); UpdateBuffBar(); UpdateDebugLog(); UpdateFloatTexts((float)delta); UpdateWeather((float)delta); TradeTestTick(); if (weaponAskAt > 0 && Time.GetTicksMsec() / 1000.0 >= weaponAskAt) { weaponAskAt = 0; client.RequestWeapon(); } } else UpdateRoomAnimations();
 
         if (onlineMode && roomShown && currentRoom != null) WalkProcess((float)delta);
         if (autoSay != null && sayStage >= 0 && roomShown) DriveTypingTest();
@@ -483,6 +483,8 @@ public partial class Main : Node
         audio.ListenerPos = () => walker != null ? RoomBuilder.P(walker.X, walker.Y, 0) : (Vector3?)null;
         LoadAudioSettings();
         client.SectorMoved += OnSectorMoved;
+        client.WeaponReceived += OnWeaponReceived;
+        client.EquipmentChanged += AskWeaponSoon;
         client.TextureChanged += OnTextureChanged;
         client.WallAnimated += OnWallAnimated;
         client.LightingChanged += (a, v) => { RoomLight.Set(a, v); if (AnimLog) GD.Print($"[light] ambient {a} viewer {v}"); };
@@ -658,9 +660,9 @@ public partial class Main : Node
         box.AddChild(new Label { Text = "Menu", HorizontalAlignment = HorizontalAlignment.Center });
         Button mk(string t, Action a) { var b = new Button { Text = t }; b.Pressed += a; box.AddChild(b); return b; }
         mk("Resume", () => ToggleGameMenu(false));
-        mk("Spells (B)", () => { ToggleGameMenu(false); if (hudMgr != null) ToggleTab(1); });
-        mk("Skills (K)", () => { ToggleGameMenu(false); if (hudMgr != null) ToggleTab(2); });
-        mk("Camera: 1st / 3rd person (V)", () => { ToggleGameMenu(false); if (walker != null) ToggleThirdPerson(); });
+        mk($"Spells ({KeyName(keymap["spells"])})", () => { ToggleGameMenu(false); if (hudMgr != null) ToggleTab(1); });
+        mk($"Skills ({KeyName(keymap["skills"])})", () => { ToggleGameMenu(false); if (hudMgr != null) ToggleTab(2); });
+        mk($"Camera: 1st / 3rd person ({KeyName(keymap["camera"])})", () => { ToggleGameMenu(false); if (walker != null) ToggleThirdPerson(); });
         mk("Interface settings", () => { ToggleGameMenu(false); hudMgr?.Toggle("interface"); });
         adminMenuBtn = mk("Admin: teleport (F6)", () => { ToggleGameMenu(false); hudMgr?.Toggle("admin"); });
         adminMenuBtn.Visible = false;                    // shown after login when the account is an admin
@@ -789,7 +791,7 @@ public partial class Main : Node
 
         roomShown = true;
         ApplyPendingRoomChanges();
-        MailRoomReady();
+        MailRoomReady(); AskWeaponSoon();
         loginPanel.Visible = false; HideCharCreate();
         GetViewport().GuiReleaseFocus();
         if (chatPanel == null) BuildHud();
@@ -808,7 +810,7 @@ public partial class Main : Node
         
         string rn = client.Resolve(info.RoomNameRID) ?? "?";
         hud.Text = $"{rn}  [{Path.GetFileName(path)}]  objects={client.Objects.Count} (sprites {shown})  ambient={info.AmbientLight}\n" +
-                   "WASD walk, Shift run, hold right mouse button or arrows to turn, F8 = free camera, F = attack, Space = go through door";
+                   $"{KeyName(keymap["forward"])}/{KeyName(keymap["left"])}/{KeyName(keymap["back"])}/{KeyName(keymap["right"])} walk, {KeyName(keymap["run"])} run, hold right mouse button or arrows to turn, F8 = free camera, {KeyName(keymap["attack"])} = attack, {KeyName(keymap["use"])} = go through door";
         GD.Print($"[pos] walker={walker?.X},{walker?.Y},{walker?.Z} yaw={yaw}");
         GD.Print($"online room: {rn} ({Path.GetFileName(path)}), {client.Objects.Count} objects, {shown} sprites");
         if (shotPath != null && shotCountdown < 0) shotCountdown = autoWalk > 0 ? (int)(autoWalk * 60) + 40 : (shotDelay > 0 ? (int)(shotDelay * 60) : (autoSay != null ? 260 : (optTestDrag ? 220 : 10)));
@@ -1454,7 +1456,7 @@ public partial class Main : Node
         // --- chat window: log with the input line always visible below it
         var box = new VBoxContainer();
         chatLog = new RichTextLabel { BbcodeEnabled = true, ScrollFollowing = true, SizeFlagsVertical = Control.SizeFlags.ExpandFill, FocusMode = Control.FocusModeEnum.Click, SelectionEnabled = true, ContextMenuEnabled = true };   // drag to select, Ctrl+C or right-click to copy
-        chatInput = new LineEdit { PlaceholderText = "Press Enter to chat  (/y yell, /e emote)", FocusMode = Control.FocusModeEnum.Click };
+        chatInput = new LineEdit { PlaceholderText = $"Press {KeyName(keymap["chat"])} to chat  (/y yell, /e emote)", FocusMode = Control.FocusModeEnum.Click };
         chatInput.TextSubmitted += text =>
         {
             DbgMark(text);   // debug log: whatever is typed becomes a marker line (see DebugLog.cs)
@@ -1540,7 +1542,7 @@ public partial class Main : Node
         invGrid.AddThemeConstantOverride("h_separation", 4);
         invGrid.AddThemeConstantOverride("v_separation", 4);
         scroll.AddChild(invGrid);
-        invInfo = new Label { Text = "Double-click or Space: use / unuse.  Right-click: look.  Drag out to drop.", AutowrapMode = TextServer.AutowrapMode.WordSmart };
+        invInfo = new Label { Text = $"Double-click or {KeyName(keymap["use"])}: use / unuse.  Right-click: look.  Drag out to drop.", AutowrapMode = TextServer.AutowrapMode.WordSmart };
         invInfo.AddThemeFontSizeOverride("font_size", 12);
         ibox.AddChild(scroll); ibox.AddChild(invInfo);
         // inventory, spells and skills share one window as tabs (spells/skills tabs are added by BuildSpellWindows)
@@ -1587,7 +1589,7 @@ public partial class Main : Node
         dropLayer.AddChild(dropTarget);
         AddChild(dropLayer);
 
-        AddChatLine("Press Enter to chat. Menu (top right, or F10) = window lock, UI scale, reset layout.", "System");
+        AddChatLine($"Press {KeyName(keymap["chat"])} to chat. Menu (top right, or F10) = window lock, UI scale, reset layout.", "System");
     }
 
     void AddChatLine(string text, string kind)
@@ -1714,6 +1716,24 @@ public partial class Main : Node
         return path != null ? sprites.Get(path, group, 0, o.ColorTranslation)?.Texture : null;
     }
 
+    // the Attack icon shows what we fight with: the wielded weapon (asked from our own server whenever the equipment changes), the punch icon for bare hands
+    uint weaponId; byte weaponKind; double weaponAskAt; Texture2D fistIcon;
+    Texture2D AttackIcon()
+    {
+        var w = weaponId != 0 ? client.Inventory.Find(x => x.ID == weaponId) : null;
+        if (w != null) { var t = IconFor(w); if (t != null) return t; }
+        if (fistIcon == null) { var path = ResolveFile("punchico.bgf"); fistIcon = path != null ? sprites.Get(path, 1, 0, 0)?.Texture : null; }
+        return fistIcon;
+    }
+    string AttackTip()
+    {
+        var w = weaponId != 0 ? client.Inventory.Find(x => x.ID == weaponId) : null;
+        string with = w != null ? (client.Resolve(w.NameRID) ?? "your weapon") : "your fists";
+        return $"Attack ({KeyName(keymap["attack"])}) with {with}: hits your target, or the nearest thing in front of you.";
+    }
+    void OnWeaponReceived(uint id, byte kind) { if (AnimLog) GD.Print($"[weapon] id {id} kind {kind}"); weaponId = id; weaponKind = kind; RefreshHotbar(); RebuildSkills(); }
+    void AskWeaponSoon() { weaponAskAt = Time.GetTicksMsec() / 1000.0 + 0.4; }
+
     /// <summary>Redraw the hotbar from its entries (call again when spells / inventory / skills change).</summary>
     void RefreshHotbar()
     {
@@ -1728,7 +1748,7 @@ public partial class Main : Node
                 ObjectBase src = h.Kind == "spell" ? client.Spells.Find(x => x.ID == h.Id)
                                : h.Kind == "skill" ? client.Skills.Find(x => x.ID == h.Id)
                                : h.Kind == "item" ? client.Inventory.Find(x => x.ID == h.Id) : null;
-                if (h.Kind == "attack") sl.Label = "Attack";
+                if (h.Kind == "attack") { sl.Icon = AttackIcon(); if (sl.Icon == null) sl.Label = "Attack"; sl.TooltipText = AttackTip(); }
                 else if (h.Kind.StartsWith("comp_")) { sl.Label = CommandLabel(h.Kind); sl.TooltipText = CommandTip(h.Kind); }
                 else if (src != null) { sl.Icon = IconFor(src); sl.TooltipText = client.Resolve(src.NameRID) ?? h.Name; if (sl.Icon == null) sl.Label = h.Name; }
                 else sl.Label = h.Name;       // not (yet) known, e.g. before the lists arrive
@@ -1938,7 +1958,7 @@ public partial class Main : Node
         if (skillFlow == null) return;
         foreach (var c in skillFlow.GetChildren()) { skillFlow.RemoveChild(c); c.QueueFree(); }
         // the Attack button is not a server skill; it can be dragged to the hotbar from here
-        skillFlow.AddChild(new ListRow { ItemName = "Attack", Kind = "attack", TooltipText = "Attack (F): hits your target, or the nearest thing in front of you.\nDrag onto the hotbar." });
+        skillFlow.AddChild(new ListRow { ItemName = "Attack", Kind = "attack", Icon = AttackIcon(), TooltipText = AttackTip() + "\nDrag onto the hotbar." });
         foreach (var sk in client.Skills) skillFlow.AddChild(MakeListRow(sk, "skill", "skill", Colors.White));
     }
 
