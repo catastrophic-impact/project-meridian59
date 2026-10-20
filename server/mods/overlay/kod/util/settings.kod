@@ -123,6 +123,8 @@ properties:
    piWeatherMode = 1
    piWeatherStartPct = 12
    piWeatherContinuePct = 70
+   % chance (percent) that a moderate-or-heavier shower is a thunderstorm
+   piWeatherStormPct = 30
    piMobAggroRadius = 8
 
    % piAdvancementRate: Determines how fast or slow advancement goes for all
@@ -602,6 +604,11 @@ messages:
    GetWeatherContinuePct()
    {
       return piWeatherContinuePct;
+   }
+
+   GetWeatherStormPct()
+   {
+      return piWeatherStormPct;
    }
 
    GetMobAggroMode()

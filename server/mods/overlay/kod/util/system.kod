@@ -285,8 +285,8 @@ properties:
    % updated every day
    pbStormy = TRUE
 
-   % Custom: rain or snow is falling (changes at random every game hour, see UpdatePrecipitation)
-   pbPrecipitation = FALSE
+   % Custom: the rain of each weather zone, [[intensity, thunderstorm] x 3] (see UpdatePrecipitation)
+   plWeather = $
 
    poLibrary = $
    poParliament = $
@@ -3683,38 +3683,118 @@ messages:
       return;
    }
 
-   UpdatePrecipitation()
-   "Custom: every game hour (5 real minutes) rain or snow may start or stop.  Clients draw it outdoors only (see client Weather.cs)."
+   GetZoneWeather(iZone = 1)
+   "Custom: [intensity 0-5, thunderstorm] of a weather zone (1 temperate, 2 jungle, 3 north)."
    {
-      local i,oSettings,bWas;
+      if iZone < 1 OR iZone > 3
+      {
+         return $;
+      }
+
+      if plWeather = $
+      {
+         plWeather = [ [0,FALSE], [0,FALSE], [0,FALSE] ];
+      }
+
+      return Nth(plWeather,iZone);
+   }
+
+   RollRainIntensity()
+   {
+      local iRoll;
+
+      iRoll = Random(1,100);
+      if iRoll <= 25 { return 1; }
+      if iRoll <= 55 { return 2; }
+      if iRoll <= 80 { return 3; }
+      if iRoll <= 95 { return 4; }
+
+      return 5;
+   }
+
+   UpdatePrecipitation()
+   "Custom: every game hour (5 real minutes) the rain of each weather zone may start, change or stop.  Intensity runs from a sprinkle (1) to a downpour (5); a moderate or heavier shower is sometimes a thunderstorm."
+   {
+      local i,iZone,lZ,iOld,iNew,bOldStorm,bStorm,oSettings,iRoll;
 
       oSettings = Send(self,@GetSettings);
-      bWas = pbPrecipitation;
-      if Send(oSettings,@GetWeatherMode) = 0
+      for iZone in [1,2,3]
       {
-         pbPrecipitation = FALSE;
-      }
-      else
-      {
-         if pbPrecipitation
+         lZ = Send(self,@GetZoneWeather,#iZone=iZone);
+         iOld = First(lZ);
+         bOldStorm = Nth(lZ,2);
+         iNew = iOld;
+         bStorm = bOldStorm;
+
+         if Send(oSettings,@GetWeatherMode) = 0 OR iZone = 3
          {
-            if Random(1,100) > Send(oSettings,@GetWeatherContinuePct)
-            {
-               pbPrecipitation = FALSE;
-            }
+            iNew = 0;
+            bStorm = FALSE;
          }
          else
          {
-            if Random(1,100) <= Send(oSettings,@GetWeatherStartPct)
+            if iOld = 0
             {
-               pbPrecipitation = TRUE;
+               if Random(1,100) <= Send(oSettings,@GetWeatherStartPct)
+               {
+                  iNew = Send(self,@RollRainIntensity);
+                  bStorm = (iNew >= 3) AND (Random(1,100) <= Send(oSettings,@GetWeatherStormPct));
+               }
+            }
+            else
+            {
+               if Random(1,100) > Send(oSettings,@GetWeatherContinuePct)
+               {
+                  iNew = 0;
+                  bStorm = FALSE;
+               }
+               else
+               {
+                  iRoll = Random(1,3);
+                  if iRoll = 1 { iNew = iOld - 1; }
+                  if iRoll = 3 { iNew = iOld + 1; }
+                  iNew = Bound(iNew,1,5);
+                  if iNew < 3
+                  {
+                     bStorm = FALSE;
+                  }
+               }
+            }
+         }
+
+         if iNew <> iOld OR bStorm <> bOldStorm
+         {
+            SetNth(lZ,1,iNew);
+            SetNth(lZ,2,bStorm);
+            for i in plUsers_logged_on
+            {
+               if Send(i,@GetOwner) <> $ AND Send(Send(i,@GetOwner),@GetWeatherZone) = iZone
+               {
+                  Send(self,@SendWeatherTo,#who=i,#bChange=TRUE);
+               }
             }
          }
       }
 
-      if bWas <> pbPrecipitation
+      return;
+   }
+
+   SetWeather(iZone = 1,iIntensity = 0,bStorm = FALSE)
+   "Admin / test: set the rain of a zone now."
+   {
+      local i,lZ;
+
+      lZ = Send(self,@GetZoneWeather,#iZone=iZone);
+      if lZ = $
       {
-         for i in plUsers_logged_on
+         return;
+      }
+
+      SetNth(lZ,1,Bound(iIntensity,0,5));
+      SetNth(lZ,2,bStorm AND iIntensity >= 3);
+      for i in plUsers_logged_on
+      {
+         if Send(i,@GetOwner) <> $ AND Send(Send(i,@GetOwner),@GetWeatherZone) = iZone
          {
             Send(self,@SendWeatherTo,#who=i,#bChange=TRUE);
          }
@@ -3723,24 +3803,10 @@ messages:
       return;
    }
 
-   SetPrecipitation(bOn = FALSE)
-   "Admin / test: turn rain or snow on or off now."
-   {
-      local i;
-
-      pbPrecipitation = bOn;
-      for i in plUsers_logged_on
-      {
-         Send(self,@SendWeatherTo,#who=i,#bChange=TRUE);
-      }
-
-      return;
-   }
-
    SendWeatherTo(who = $,bChange = FALSE)
-   "Tell one player what falls from the sky: rain, or snow in winter (not in Ko'catan).  Entering a room only needs a message when it is falling."
+   "Tell one player how hard it rains where they are.  Entering a room only needs a message when it is raining."
    {
-      local oRoom;
+      local oRoom,iZone,lZ,iIntensity,bStorm;
 
       oRoom = Send(who,@GetOwner);
       if oRoom = $
@@ -3748,24 +3814,29 @@ messages:
          return;
       }
 
-      if NOT pbPrecipitation
+      iIntensity = 0;
+      bStorm = FALSE;
+      iZone = Send(oRoom,@GetWeatherZone);
+      lZ = Send(self,@GetZoneWeather,#iZone=iZone);
+      if lZ <> $
+      {
+         iIntensity = First(lZ);
+         bStorm = Nth(lZ,2);
+      }
+
+      if iIntensity = 0
       {
          if bChange
          {
             Send(who,@EffectSendUser,#effect=EFFECT_CLEARWEATHER);
+            Send(who,@SendWeather,#iIntensity=0,#bStorm=FALSE);
          }
 
          return;
       }
 
-      if (piYear mod 4) = 3 AND Send(oRoom,@GetRegion) <> RID_KOCATAN
-      {
-         Send(who,@EffectSendUser,#effect=EFFECT_SNOWING);
-      }
-      else
-      {
-         Send(who,@EffectSendUser,#effect=EFFECT_RAINING);
-      }
+      Send(who,@EffectSendUser,#effect=EFFECT_RAINING);
+      Send(who,@SendWeather,#iIntensity=iIntensity,#bStorm=bStorm);
 
       return;
    }

@@ -233,6 +233,7 @@
    EXT_MSG_TARGET_HEALTH    = 3
    EXT_MSG_BUFF_TIMES       = 4
    EXT_MSG_COMBAT           = 5
+   EXT_MSG_WEATHER          = 6
    % Companion roles
    COMPANION_ROLE_MAGE      = 1
    COMPANION_ROLE_HEALER    = 2

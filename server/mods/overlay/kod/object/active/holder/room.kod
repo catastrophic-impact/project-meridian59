@@ -179,6 +179,9 @@ classvars:
    % Used to determine sounds and by some spells to gauge bonuses
    viTerrain_type = 0
 
+   % Custom weather zone: -1 = work it out (GetWeatherZone), otherwise 0 none, 1 temperate, 2 jungle, 3 north (cold; snow is for later)
+   viWeather_zone = -1
+
    vrDoor_open_sound = door_open_sound
    vrDoor_close_sound = door_close_sound
    vrWading_Sound = water_wading_sound
@@ -895,6 +898,27 @@ messages:
       }
 
       return;
+   }
+
+   GetWeatherZone()
+   "Custom: which weather zone the room is in.  0 = no weather (deserts, caves, mines, sewers, lava, the underworld), 1 = temperate (most of the mainland), 2 = jungle (Ko'catan), 3 = the cold north (nothing falls there yet).  A room class can set viWeather_zone to choose."
+   {
+      if viWeather_zone >= 0
+      {
+         return viWeather_zone;
+      }
+
+      if viTerrain_type & (TERRAIN_DESERT | TERRAIN_BADLANDS | TERRAIN_LAVA | TERRAIN_CAVES | TERRAIN_MINES | TERRAIN_SEWERS | TERRAIN_NECROPOLIS | TERRAIN_MYSTICAL)
+      {
+         return 0;
+      }
+
+      if Send(self,@GetRegion) = RID_KOCATAN
+      {
+         return 2;
+      }
+
+      return 1;
    }
 
    GetRegion()

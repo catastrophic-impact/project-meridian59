@@ -200,6 +200,7 @@ public class GameClient
             case 2: { uint from = r.ReadUInt32(); GroupInviteReceived?.Invoke(from, Str()); break; }
             case 3: { uint id = r.ReadUInt32(); TargetHealthReceived?.Invoke(id, r.ReadByte()); break; }
             case 5: { uint v = r.ReadUInt32(), a = r.ReadUInt32(); int amt = r.ReadUInt16(); byte kind = r.ReadByte(); CombatNumberReceived?.Invoke(v, a, amt, kind); break; }
+            case 6: { int inten = r.ReadByte(); bool storm = r.ReadByte() != 0; WeatherReceived?.Invoke(inten, storm); break; }
             case 4:
                 {
                     int n = r.ReadByte(); long now = Environment.TickCount64;
@@ -230,6 +231,7 @@ public class GameClient
     public void TradeAccept() { if (conn != null) Send(new AcceptOfferMessage()); }
     public void TradeCancel() { if (conn != null) Send(new CancelOfferMessage()); }
     public void TradeCounter(ObjectID[] items) { if (conn != null) Send(new ReqCounterOfferMessage(items)); }
+    public event Action<int, bool> WeatherReceived;   // rain intensity 0 (clear) .. 5 (downpour), thunderstorm
     public event Action<ushort, Animation, byte> WallAnimated;   // sidedef server id, animation, end action (0 none, 1 passable, 2 impassable, 3 invisible + passable)
     public event Action<byte, ushort, ushort, byte> SectorMoved;   // type (4 floor lift, 5 ceiling lift), server sector id, destination height (kod units), speed (kod units per second; 0 = at once)
     public event Action<int, int> SunChanged;       // intensity 0-64, angle 0-4095

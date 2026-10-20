@@ -4910,6 +4910,20 @@ messages:
       return;
    }
 
+   SendWeather(iIntensity = 0, bStorm = FALSE)
+   "Custom: how hard it rains (0 clear .. 5 downpour) and whether it is a thunderstorm; our client draws it."
+   {
+      if NOT pbLogged_on OR poSession = $
+      {
+         return;
+      }
+
+      AddPacket(1,BP_EXT_GAME, 1,EXT_MSG_WEATHER, 1,iIntensity, 1,bStorm);
+      SendPacket(poSession);
+
+      return;
+   }
+
    SendBuffTimes()
    "Tells the client the time left (ms, 0 = no timer) and whether it is harmful, for each shown enchantment."
    {

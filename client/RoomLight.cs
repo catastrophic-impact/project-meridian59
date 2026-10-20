@@ -10,6 +10,8 @@ using Godot;
 /// </summary>
 public static class RoomLight
 {
+    public static float Dim;                                              // overcast 0..1 (weather): darkens the ambient light and weakens the sun
+    public static float AmbientEff => Ambient * (1f - 0.5f * Dim);
     public static float Ambient = 255f, Viewer = 0f, ShadeAmount = 0f;   // ambient 0-255, viewer light 0-255, sun shade 0..1 (official intensity/64)
     public static Vector2 Sun = new Vector2(1, 0);                       // sun direction in world x (east) / y (south)
 
@@ -38,7 +40,7 @@ public static class RoomLight
     static void DeclareGlobals()
     {
         if (globalsDeclared) return; globalsDeclared = true;
-        RenderingServer.GlobalShaderParameterAdd("m59_env", RenderingServer.GlobalShaderParameterType.Vec4, new Vector4(Ambient, Viewer, ShadeAmount, lightCount));
+        RenderingServer.GlobalShaderParameterAdd("m59_env", RenderingServer.GlobalShaderParameterType.Vec4, new Vector4(AmbientEff, Viewer, ShadeAmount * (1f - 0.7f * Dim), lightCount));
         RenderingServer.GlobalShaderParameterAdd("m59_sun", RenderingServer.GlobalShaderParameterType.Vec2, Sun);
         if (lightImg == null) { lightImg = Image.CreateEmpty(MaxLights, 2, false, Image.Format.Rgbaf); lightTex = ImageTexture.CreateFromImage(lightImg); }
         RenderingServer.GlobalShaderParameterAdd("m59_lights", RenderingServer.GlobalShaderParameterType.Sampler2D, lightTex);
@@ -48,9 +50,11 @@ public static class RoomLight
     public static void Apply()
     {
         DeclareGlobals();
-        RenderingServer.GlobalShaderParameterSet("m59_env", new Vector4(Ambient, Viewer, ShadeAmount, lightCount));
+        RenderingServer.GlobalShaderParameterSet("m59_env", new Vector4(AmbientEff, Viewer, ShadeAmount * (1f - 0.7f * Dim), lightCount));
         RenderingServer.GlobalShaderParameterSet("m59_sun", Sun);
     }
+
+    public static void SetDim(float d) { d = Mathf.Clamp(d, 0f, 1f); if (Mathf.Abs(d - Dim) < 0.004f) return; Dim = d; Apply(); }
 
     public static void Set(byte ambient, byte viewer)
     {
@@ -71,7 +75,7 @@ public static class RoomLight
         int idx;
         if (sectorLight > 127)
         {
-            int rows = (int)Math.Min(255f, 8f * Viewer + Ambient);
+            int rows = (int)Math.Min(255f, 8f * Viewer + AmbientEff);
             idx = (rows + sectorLight - 192) * 64 / 256;
             if (scale != 1f) idx = (int)(scale * idx);
         }
@@ -80,7 +84,7 @@ public static class RoomLight
     }
     public static float Brightness(int sectorLight, float scale = 1f) => PaletteIndex(sectorLight, scale) * 239f / 64f / 255f;
     public static float FogEnd(int sectorLight) => sectorLight <= 127 ? 16384f + sectorLight * 1024f + Viewer * 64f
-        : 32768f + Math.Max(0, sectorLight - 192) * 1024f + Viewer * 64f + Ambient * 1024f;
+        : 32768f + Math.Max(0, sectorLight - 192) * 1024f + Viewer * 64f + AmbientEff * 1024f;
     public static float Fog(int sectorLight, float distFineness) => Mathf.Clamp(1f - distFineness / FogEnd(sectorLight), 0f, 1f);
 
     // ---- shader

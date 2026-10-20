@@ -54,6 +54,29 @@ public partial class Main
         return t;
     }
 
+    // the sky picture, greyer and darker when it is overcast, with a flash for lightning (see Weather.cs)
+    static readonly Shader SkyShader = new Shader { Code = @"shader_type spatial;
+render_mode unshaded, cull_disabled, depth_draw_never, fog_disabled;
+uniform sampler2D tex : source_color, filter_linear, repeat_disable;
+uniform float overcast = 0.0;
+uniform float flash = 0.0;
+void fragment() {
+    vec3 c = texture(tex, UV).rgb;
+    float l = dot(c, vec3(0.30, 0.59, 0.11));
+    vec3 grey = vec3(l * 0.95 + 0.03) * vec3(0.80, 0.84, 0.92);
+    c = mix(c, grey, clamp(overcast * 1.05, 0.0, 1.0));
+    c *= 1.0 - 0.32 * overcast;
+    c += vec3(0.9, 0.95, 1.0) * flash;
+    ALBEDO = c;
+}" };
+
+    void SetSkyWeather(float overcast, float flash)
+    {
+        if (skyMesh?.Mesh == null) return;
+        for (int f = 0; f < skyMesh.Mesh.GetSurfaceCount(); f++)
+            if (skyMesh.Mesh.SurfaceGetMaterial(f) is ShaderMaterial m) { m.SetShaderParameter("overcast", overcast); m.SetShaderParameter("flash", flash); }
+    }
+
     void BuildSkyNode()
     {
         skyNode = new Node3D { Name = "Sky", Visible = false };
@@ -91,13 +114,12 @@ public partial class Main
             arr[(int)Mesh.ArrayType.TexUV] = uv;
             arr[(int)Mesh.ArrayType.Index] = new[] { 1, 2, 0, 2, 3, 0 };
             mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arr);
-            mesh.SurfaceSetMaterial(f, new StandardMaterial3D
-            {
-                ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, AlbedoTexture = tex[f], CullMode = BaseMaterial3D.CullModeEnum.Disabled,
-                TextureFilter = BaseMaterial3D.TextureFilterEnum.Linear, TextureRepeat = false, DepthDrawMode = BaseMaterial3D.DepthDrawModeEnum.Disabled, RenderPriority = -100, DisableFog = true,
-            });
+            var sm = new ShaderMaterial { Shader = SkyShader, RenderPriority = -100 };
+            sm.SetShaderParameter("tex", tex[f]);
+            mesh.SurfaceSetMaterial(f, sm);
         }
         skyMesh.Mesh = mesh;
+        SetSkyWeather(wxOvercast, wxFlash);
         skyShown = bsf; skyNode.Visible = true;
         GD.Print($"[sky] {bsf}");
     }

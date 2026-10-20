@@ -5,9 +5,12 @@ Newest first. Each push to GitHub gets an entry.
 ## Unreleased
 
 ### Weather
-- **Rain, snow and sandstorms** are now drawn by the client, outdoors only (nothing falls under a roof or indoors). The sandstorm spell uses the original's look.
-- The server makes rain come and go at random (snow in winter on the mainland, never in Ko'catan). New admin settings: Rain and snow on/off, chance to start and chance to go on per game hour (5 real minutes).
-- New Interface option "Weather (rain, snow, sand)" to turn it off.
+- **Rain** comes in five strengths, from a light sprinkle to a downpour, and sometimes a moderate or heavy shower is a **thunderstorm** with rare lightning flashes and rolling thunder (strikes about every 30 to 120 seconds, a little more often in a downpour).
+- **Overcast**: when it rains outdoors the sky turns grey and dark and the light dims, more the harder it rains. Indoors you stay dry and it fades smoothly as you walk through a door.
+- Tiny splashes where drops hit the ground near you, and a rain sound (and thunder) that is louder in heavier rain and muffled indoors. Sounds are made in code for now.
+- **Weather zones**: each room is in a zone and each zone has its own weather. Mainland and Ko'catan have rain; deserts, badlands, lava, caves, mines, sewers and the underworld never do. A room class can set its own zone (zone 3 is reserved for a colder north, where snow will come later).
+- The sandstorm spell is drawn as in the original. No seasons.
+- New admin settings: rain on/off, chance to start and to go on per game hour (5 real minutes), chance of a thunderstorm. New Interface option "Weather (rain, snow, sand)".
 
 ### Companion bots
 - New **Fighter** bot: shoots a bow from up to 9 squares (no archery skill needed) and fights in melee when the enemy is close.
