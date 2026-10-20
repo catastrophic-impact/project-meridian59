@@ -227,7 +227,7 @@ public partial class Main
         var cancel = new Button { Text = "Cancel", SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; cancel.Pressed += () => HideTradeWindow("trade_items");
         buttons.AddChild(ok); buttons.AddChild(cancel); body.AddChild(buttons);
         ShowTradeWindow(w);
-        if (System.Environment.GetEnvironmentVariable("M59_TRADEAUTO") == "1" && rows.Count > 0 && title.StartsWith("Offer")) { var want = System.Environment.GetEnvironmentVariable("M59_TRADEITEM"); var pickRow = want == null ? rows[0] : rows.FirstOrDefault(r => NameOf(r.it).Contains(want, StringComparison.OrdinalIgnoreCase)); if (pickRow.it == null) { GD.Print("[trade] auto: no item matches " + want); return; } pickRow.ck.ButtonPressed = true; GD.Print("[trade] auto: offering " + NameOf(pickRow.it)); ok.EmitSignal(BaseButton.SignalName.Pressed); }
+        if (System.Environment.GetEnvironmentVariable("M59_TRADEAUTO") == "1" && rows.Count > 0 && (title.StartsWith("Offer") || title.StartsWith("Deposit"))) { var want = System.Environment.GetEnvironmentVariable("M59_TRADEITEM"); var pickRow = want == null ? rows[0] : rows.FirstOrDefault(r => NameOf(r.it).Contains(want, StringComparison.OrdinalIgnoreCase)); if (pickRow.it == null) { GD.Print("[trade] auto: no item matches " + want); return; } pickRow.ck.ButtonPressed = true; GD.Print("[trade] auto: offering " + NameOf(pickRow.it)); ok.EmitSignal(BaseButton.SignalName.Pressed); }
     }
 
     // ---- the offer windows
@@ -325,6 +325,6 @@ public partial class Main
         foreach (var o in client.Objects) if (objPos.TryGetValue(o.ID, out var op)) GD.Print($"[trade]   {NameOf(o)} #{o.ID} buyable={o.Flags.IsBuyable} offerable={o.Flags.IsOfferable} dist={Mathf.Sqrt((op.x - walker.X) * (op.x - walker.X) + (op.y - walker.Y) * (op.y - walker.Y)) / 1024f:F1} squares");
         var near = NearbyObjects(o => t == "buy" || t == "withdraw" || t == "look" ? o.Flags.IsBuyable : o.Flags.IsOfferable && (o.Flags.IsPlayer ? o.ID != client.PlayerId : System.Environment.GetEnvironmentVariable("M59_TRADEPLAYER") != "1"));
         if (near.Count == 0) { AddChatLine("There is nobody close enough.", "System"); return; }
-        switch (t) { case "buy": client.TradeRequestBuy(near[0].ID); break; case "offer": TradeOfferTo(near[0], false); break; case "withdraw": client.TradeRequestWithdraw(near[0].ID); break; case "look": client.LookAt(near[0].ID); break; }
+        switch (t) { case "buy": client.TradeRequestBuy(near[0].ID); break; case "offer": TradeOfferTo(near[0], false); break; case "deposit": TradeOfferTo(near[0], true); break; case "withdraw": client.TradeRequestWithdraw(near[0].ID); break; case "look": client.LookAt(near[0].ID); break; }
     }
 }
