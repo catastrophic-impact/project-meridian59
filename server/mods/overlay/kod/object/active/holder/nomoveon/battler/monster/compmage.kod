@@ -37,6 +37,23 @@ messages:
       return 5;
    }
 
+   IsRanged()
+   {
+      return TRUE;
+   }
+
+   GetAttackRange()
+   "Spells reach nine squares (line of sight)."
+   {
+      return 9;
+   }
+
+   TryAttack(what = $, stroke_obj = $)
+   "A mage casts, it does not swing its mace."
+   {
+      return FALSE;
+   }
+
    CompanionAct()
    {
       local oTarget, iSid, iRoll;

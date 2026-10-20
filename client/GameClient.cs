@@ -267,6 +267,7 @@ public class GameClient
         user = username; password = pw;
         sentLogin = sentGame = sentChars = haveInfo = haveContents = requestedStats = false;
         Room = null; Objects = new List<RoomObject>(); AvatarBuffs.Clear(); RoomBuffs.Clear(); BuffTimes.Clear();
+        GroupLeader = 0; Group = new List<GroupMember>(); GroupChanged?.Invoke();
         conn?.Disconnect();
         conn = new ServerConnection(Strings);
         State = Phase.Connecting;

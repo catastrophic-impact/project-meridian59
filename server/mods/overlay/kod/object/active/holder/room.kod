@@ -1141,13 +1141,15 @@ messages:
    "Custom: breadth-first search over the room's walk grid (the same walls CanMoveInRoom checks).  Returns the cells [row,col] from the first step to the goal, or $ if there is no way within max_nodes cells."
    {
       local lCur, lNext, lKeys, lParents, iCount, i, iDir, iRow, iCol, iNr, iNc, iNk, iIdx,
-            lPath, iGoal, iStart, bFound, iMaxRow, iMaxCol, lDirs, iCur, iPr;
+            lPath, iGoal, iStart, bFound, iMaxRow, iMaxCol, lDirs, iCur, iPr, bFine;
 
       if row = $ OR col = $ OR goal_row = $ OR goal_col = $
       {
          return $;
       }
 
+      % monsters walk by the same grid the server uses to validate their steps
+      bFine = (Send(Send(SYS,@GetSettings),@GetLOS) = LOS_NEW_MONSTER OR Send(Send(SYS,@GetSettings),@GetLOS) = LOS_NEW_BOTH);
       iMaxRow = Send(self,@GetRoomRows);
       iMaxCol = Send(self,@GetRoomCols);
       iStart = row * 1000 + col;
@@ -1180,7 +1182,8 @@ messages:
                   iNk = iNr * 1000 + iNc;
                   if NOT (FindListElem(lKeys,iNk) > 0)
                   {
-                     if CanMoveInRoom(prmRoom,iRow,iCol,iNr,iNc)
+                     if (bFine AND CanMoveInRoomFine(prmRoom,iRow,iCol,iNr,iNc))
+                        OR (NOT bFine AND CanMoveInRoom(prmRoom,iRow,iCol,iNr,iNc))
                      {
                         lKeys = Cons(iNk,lKeys);
                         lParents = Cons(i,lParents);

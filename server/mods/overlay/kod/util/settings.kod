@@ -115,6 +115,9 @@ properties:
 
    % Writes companion bot decisions (distance to master, stuck checks, orders) to the server debug log.
    pbCompanionDebug = FALSE
+
+   % Companions jump to their master when they are far away or stuck.  Off = they must walk (for testing movement).
+   pbCompanionTeleport = TRUE
    piMobAggroRadius = 8
 
    % piAdvancementRate: Determines how fast or slow advancement goes for all
@@ -175,7 +178,7 @@ properties:
    %
 
    % Line of Sight (LOS) check.  What are we using?
-   piLOS = LOS_OLD
+   piLOS = LOS_NEW_BOTH
 
    % How many summoned objects can be in a room
    piPlayerSummonedObjectLimit = 18
@@ -574,6 +577,11 @@ messages:
    GetCompanionDebug()
    {
       return pbCompanionDebug;
+   }
+
+   GetCompanionTeleport()
+   {
+      return pbCompanionTeleport;
    }
 
    GetMobAggroMode()

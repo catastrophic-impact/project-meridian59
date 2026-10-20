@@ -24,6 +24,10 @@ public partial class Main : Node
     uint targetIdVal; uint targetId { get => targetIdVal; set { if (targetIdVal != value) { targetIdVal = value; targetDirty = true; } } }   // object last clicked / tabbed to
     bool targetDirty; HudWindow targetWin; TextureRect targetPic; Label targetMissing, targetName, targetInfo; uint targetShown;         // test hook: open the Esc menu on entering the room
     string autoSay;       // test hook: say this once in the room
+    static readonly double AutoWalkStart = double.TryParse(System.Environment.GetEnvironmentVariable("M59_WALKSTART"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var aws) ? aws : 0;
+    static readonly double TurnAt = double.TryParse(System.Environment.GetEnvironmentVariable("M59_TURNAT"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var ta) ? ta : 0;
+    static readonly float TurnYaw = float.TryParse(System.Environment.GetEnvironmentVariable("M59_TURNYAW"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var ty) ? ty : 0;
+    bool turnDone;
     float autoWalk = 0;   // test hook: hold 'forward' for this many seconds after entering the room
 
     // online mode
@@ -65,6 +69,7 @@ public partial class Main : Node
     readonly Dictionary<uint, Sprite3D> objSprites = new Dictionary<uint, Sprite3D>();
     Walker objWalker; Meridian59.Files.Room.RoomFile objWalkerRoom;
     readonly Dictionary<uint, (float x, float y, float speed)> objTargets = new Dictionary<uint, (float, float, float)>();
+    readonly Dictionary<uint, List<(float x, float y, bool lead)>> objQueue = new Dictionary<uint, List<(float, float, bool)>>();   // reported spots still to walk through, in order
     readonly Dictionary<uint, (float x, float y)> objPos = new Dictionary<uint, (float, float)>();
     // movement smoothing: servers only tell us where others were ~once per second, so we aim a little ahead of the last report
     // avatars: objects with overlays (players, equipped monsters) are composed from several bitmaps for the current viewing angle
@@ -487,7 +492,7 @@ public partial class Main : Node
         client.EffectReceived += OnEffect;
         client.CharCreationRequested += ci => ShowCharCreate(ci);
         client.CharCreationRejected += OnCharCreationRejected;
-        client.ObjectRemoved += id => { if (objSprites.Remove(id, out var n)) n.QueueFree(); objTargets.Remove(id); objPos.Remove(id); objReported.Remove(id); avatars.Remove(id); objAngle.Remove(id); };
+        client.ObjectRemoved += id => { if (objSprites.Remove(id, out var n)) n.QueueFree(); objTargets.Remove(id); objQueue.Remove(id); objPos.Remove(id); objReported.Remove(id); avatars.Remove(id); objAngle.Remove(id); };
         client.ObjectMoved += (id, x, y, spd) =>
         {
             if (id == client.PlayerId)
@@ -677,7 +682,7 @@ public partial class Main : Node
         roomShown = false; flyMode = false; walker = null; currentRoom = null;
         current?.QueueFree(); current = null;
         objectsRoot?.QueueFree(); objectsRoot = null;
-        objSprites.Clear(); objTargets.Clear(); objPos.Clear(); objReported.Clear(); avatars.Clear(); objAngle.Clear(); avatarCache.Clear();
+        objSprites.Clear(); objTargets.Clear(); objQueue.Clear(); objPos.Clear(); objReported.Clear(); avatars.Clear(); objAngle.Clear(); avatarCache.Clear();
         if (hudMgr != null) hudMgr.Root.Visible = false;
         if (buffRow != null) { buffRow.Visible = false; buffsDirty = true; }
         SetMapMaximized(false); dbgLast.Clear();
@@ -753,7 +758,7 @@ public partial class Main : Node
         // objects as billboards
         objectsRoot = new Node3D { Name = "Objects" };
         AddChild(objectsRoot);
-        objSprites.Clear(); objTargets.Clear(); objPos.Clear(); objReported.Clear(); avatars.Clear(); objAngle.Clear(); avatarCache.Clear();
+        objSprites.Clear(); objTargets.Clear(); objQueue.Clear(); objPos.Clear(); objReported.Clear(); avatars.Clear(); objAngle.Clear(); avatarCache.Clear();
         walker = null;
         foreach (var o in client.Objects)
         {
@@ -840,19 +845,31 @@ public partial class Main : Node
     void OnOtherMoved(uint id, float x, float y, float spd)
     {
         float speed = Mathf.Max(spd, 12f) * 102.4f;
+        DbgMoveReport(id, x, y, spd);
         if (LagLog && objPos.TryGetValue(id, out var cur)) { lagSum += Mathf.Sqrt((cur.x - x) * (cur.x - x) + (cur.y - y) * (cur.y - y)) / 1024f; lagCount++; }
-        float tx = x, ty = y;
-        if (LeadSeconds > 0 && objReported.TryGetValue(id, out var prev) && currentRoom != null)
+        float tx = x, ty = y; bool haveLead = false;
+        bool jump = objReported.TryGetValue(id, out var last) && Mathf.Sqrt((x - last.x) * (x - last.x) + (y - last.y) * (y - last.y)) > 4096f;   // teleport / room change: no path to follow
+        if (LeadSeconds > 0 && !jump && objReported.TryGetValue(id, out var prev) && currentRoom != null)
         {
             float dx = x - prev.x, dy = y - prev.y, d = Mathf.Sqrt(dx * dx + dy * dy);
             if (d > 64f && d < speed * 3f)            // a real step (not a teleport / jitter)
             {
                 var w = new Walker(currentRoom);
-                if (w.Place(x, y)) { w.Move(dx / d * speed * LeadSeconds, dy / d * speed * LeadSeconds); tx = w.X; ty = w.Y; }
+                if (w.Place(x, y)) { w.Move(dx / d * speed * LeadSeconds, dy / d * speed * LeadSeconds); tx = w.X; ty = w.Y; haveLead = true; }
             }
         }
         objReported[id] = (x, y);
-        objTargets[id] = (tx, ty, speed);
+        if (jump || spd <= 0f) { objPos[id] = (x, y); objTargets.Remove(id); if (objQueue.TryGetValue(id, out var qq)) qq.Clear(); PlaceSprite(id); return; }   // teleport (speed 0): appear there instead of gliding through walls
+        // The server walks cell by cell, possibly around corners: walk through every reported spot in order instead of
+        // cutting straight to the newest one.  The lead guess is only a temporary tail, replaced by the next report.
+        if (!objQueue.TryGetValue(id, out var q)) objQueue[id] = q = new List<(float, float, bool)>();
+        if (jump || !objPos.ContainsKey(id)) { q.Clear(); objTargets.Remove(id); }
+        if (q.Count > 0 && q[q.Count - 1].lead) q.RemoveAt(q.Count - 1);
+        q.Add((x, y, false));
+        if (haveLead) q.Add((tx, ty, true));
+        while (q.Count > 8) q.RemoveAt(0);
+        if (!objTargets.ContainsKey(id)) { var h = q[0]; q.RemoveAt(0); objTargets[id] = (h.x, h.y, speed); }
+        else objTargets[id] = (objTargets[id].x, objTargets[id].y, speed);
     }
 
     // ---- admin tools (only offered when the login result says this account is an admin) ----
@@ -1308,8 +1325,14 @@ public partial class Main : Node
             var t = objTargets[id];
             if (!objPos.TryGetValue(id, out var p)) { objTargets.Remove(id); continue; }
             float dx = t.x - p.x, dy = t.y - p.y, d = Mathf.Sqrt(dx * dx + dy * dy);
-            float step = t.speed * dt * (d > 2048f ? 1.6f : 1f);      // more than two squares behind: catch up faster
-            if (d <= step) { objPos[id] = (t.x, t.y); objTargets.Remove(id); }
+            int backlog = objQueue.TryGetValue(id, out var oq) ? oq.Count : 0;
+            float step = t.speed * dt * (d > 2048f ? 1.6f : 1f) * (1f + 0.3f * Mathf.Min(backlog, 3));      // behind: catch up faster
+            if (d <= step)
+            {
+                objPos[id] = (t.x, t.y);
+                if (backlog > 0) { var nx0 = oq[0]; oq.RemoveAt(0); objTargets[id] = (nx0.x, nx0.y, t.speed); }
+                else objTargets.Remove(id);
+            }
             else
             {
                 float nx = p.x + dx / d * step, ny = p.y + dy / d * step;
@@ -1324,6 +1347,7 @@ public partial class Main : Node
                         if (moved > step * 0.3f) { nx = objWalker.X; ny = objWalker.Y; }          // otherwise fully blocked (door, odd geometry): go straight
                     }
                 }
+                DbgMoveDrawn(id, p.x, p.y, nx, ny);
                 objPos[id] = (nx, ny);
             }
             PlaceSprite(id);
@@ -1333,8 +1357,10 @@ public partial class Main : Node
 
         bool run = Input.IsKeyPressed(Key.Shift) && (client.GetNumeric(Meridian59.Common.Enums.StatGroup.Condition, 3)?.ValueCurrent ?? 100) >= MinVigorToRun;   // official MIN_VIGOR: too tired = walk
         float fwd = 0, side = 0;
-        if (Input.IsKeyPressed(Key.W) || Input.IsKeyPressed(Key.Up) || autoWalk > 0) fwd += 1;
-        if (autoWalk > 0) { autoWalk -= dt; if (autoWalk <= 0) GD.Print($"autowalk done at world ({walker.X:F0},{walker.Y:F0}) z={walker.Z:F0}"); }
+        if (!turnDone && TurnAt > 0 && Time.GetTicksMsec() / 1000.0 >= TurnAt) { turnDone = true; yaw = Mathf.DegToRad(TurnYaw); }   // test hook M59_TURNAT / M59_TURNYAW: change direction mid-walk
+        bool autoGo = autoWalk > 0 && Time.GetTicksMsec() / 1000.0 >= AutoWalkStart;   // test hook M59_WALKSTART=<seconds since the client started>
+        if (Input.IsKeyPressed(Key.W) || Input.IsKeyPressed(Key.Up) || autoGo) fwd += 1;
+        if (autoGo) { autoWalk -= dt; if (autoWalk <= 0) GD.Print($"autowalk done at world ({walker.X:F0},{walker.Y:F0}) z={walker.Z:F0}"); }
         if (Input.IsKeyPressed(Key.S) || Input.IsKeyPressed(Key.Down)) fwd -= 1;
         if (Input.IsKeyPressed(Key.D)) side += 1;
         if (Input.IsKeyPressed(Key.A)) side -= 1;
@@ -1389,6 +1415,7 @@ public partial class Main : Node
         chatInput = new LineEdit { PlaceholderText = "Press Enter to chat  (/y yell, /e emote)", FocusMode = Control.FocusModeEnum.Click };
         chatInput.TextSubmitted += text =>
         {
+            DbgMark(text);   // debug log: whatever is typed becomes a marker line (see DebugLog.cs)
             if (text == "/where" || text.StartsWith("/where ")) WhereReport(text.Length > 7 ? text.Substring(7).Trim() : "");
             else if (text.StartsWith("/go ") && client.IsAdmin) AdminGoByName(text.Substring(4).Trim());
             else if (text.StartsWith("/give ") && client.IsAdmin) AdminGiveByName(text.Substring(6).Trim());

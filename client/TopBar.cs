@@ -47,7 +47,8 @@ public partial class Main
         hudMgr.AddBarButton("Map", "Show / hide the map", () => hudMgr.Toggle("map"));
         hudMgr.AddBarButton("Chat", "Show / hide the chat window", () => hudMgr.Toggle("chat"));
         hudMgr.AddBarButton("Hotbar", "Show / hide the hotbar", () => hudMgr.Toggle("hotbar"));
-        hudMgr.AddBarButton("Group", "Group and companion bots: call, dismiss, invite", () => hudMgr.Toggle("companions"));
+        hudMgr.AddBarButton("Bots", "Companion bots: call, dismiss, give orders", () => hudMgr.Toggle("companions"));
+        hudMgr.AddBarButton("Group", "Your group: members, invite, leave", () => hudMgr.Toggle("group"));
 
         hudMgr.AddBarButton("Interface", "Window lock, UI scale, volume (F10)", () => hudMgr.Toggle("interface"), right: true);
         hudMgr.AddBarButton("Menu", "Game menu (Esc)", () => ToggleGameMenu(), right: true);

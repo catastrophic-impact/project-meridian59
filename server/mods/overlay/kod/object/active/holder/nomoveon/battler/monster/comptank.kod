@@ -22,6 +22,8 @@ classvars:
 
 properties:
 
+   piTauntTicks = 0
+
 messages:
 
    AdjustStats()
@@ -29,6 +31,47 @@ messages:
       % a tank hits harder and is harder to hit
       piOffense = 150 + (piEcl * 10);
       piDefense = 200 + (piEcl * 12);
+
+      return;
+   }
+
+   CompanionAct()
+   "Taunt: about every 6 seconds, monsters within 10 squares that are going for another group member turn on the tank."
+   {
+      local i, oObj, oTar;
+
+      if piStance = 1 OR poGroup = $
+      {
+         return;
+      }
+
+      piTauntTicks = piTauntTicks + 1;
+      if piTauntTicks < 3
+      {
+         return;
+      }
+
+      piTauntTicks = 0;
+
+      for i in Send(poOwner,@GetHolderActive)
+      {
+         oObj = Send(poOwner,@HolderExtractObject,#data=i);
+         if Send(self,@IsHostileMonster,#oMon=oObj)
+            AND Send(self,@SquaredDistanceTo,#what=oObj) < 100
+         {
+            oTar = Send(oObj,@GetTarget);
+            if oTar <> $ AND oTar <> self
+               AND Send(poGroup,@IsMember,#what=oTar)
+               AND Send(poOwner,@LineOfSight,#obj1=self,#obj2=oObj)
+            {
+               Send(oObj,@TargetSwitch,#what=self,#iHatred=1000);
+               if poTarget = $ AND Send(self,@HasRoute,#oMon=oObj)
+               {
+                  Send(self,@EngageTarget,#oTarget=oObj);
+               }
+            }
+         }
+      }
 
       return;
    }

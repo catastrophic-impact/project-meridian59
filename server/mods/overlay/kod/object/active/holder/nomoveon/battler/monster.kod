@@ -1964,7 +1964,7 @@ messages:
 
          if piMtFail >= 2
          {
-            piPathTicks = 14;
+            piPathTicks = 80;
             piMtFail = 0;
             plPath = $;
          }
@@ -1998,6 +1998,8 @@ messages:
                            #face_target=face_target,#face_away=face_away,#to_master=to_master)
                {
                   plPath = Rest(plPath);
+                  % progress: stay in route-following mode while it keeps working
+                  piPathTicks = 30;
 
                   return TRUE;
                }

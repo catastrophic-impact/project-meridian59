@@ -516,8 +516,11 @@ messages:
          piIgnoreTicks = 12;
          poTarget = $;
          Send(self,@EnterStateWait,#actnow=TRUE);
+         if Send(Send(SYS,@GetSettings),@GetCompanionTeleport)
+         {
          Send(poOwner,@SomethingMoved,#what=self,#new_row=Send(poMaster,@GetRow),#new_col=Send(poMaster,@GetCol),
               #fine_row=Send(poMaster,@GetFineRow),#fine_col=Send(poMaster,@GetFineCol),#speed=0);
+         }
       }
 
       % do not run off after something far from the master
@@ -556,14 +559,14 @@ messages:
    }
 
    CheckFollow()
-   "If we are far from the master and not getting closer (blocked by a wall or pillar), or very far away, jump to him."
+   "If we are far from the master and not getting closer (blocked by a wall or pillar), or very far away (25 squares), jump to him as a last resort (a stuck bot waits about 11 seconds first)."
    {
       local iDist, bFar;
 
       iDist = Send(self,@SquaredDistanceTo,#what=poMaster);
       bFar = FALSE;
 
-      if poTarget = $ AND iDist > 36 AND iDist >= (piLastDist - 1)
+      if poTarget = $ AND iDist > 64 AND iDist >= (piLastDist - 1)
       {
          piStuck = piStuck + 1;
       }
@@ -573,7 +576,7 @@ messages:
       }
       piLastDist = iDist;
 
-      if iDist > 196 OR piStuck >= 2
+      if iDist > 625 OR piStuck >= 6
       {
          bFar = TRUE;
       }
@@ -583,7 +586,7 @@ messages:
          Debug("companion",Send(self,@GetTrueName),"dist2",iDist,"stuck",piStuck,"target",poTarget,"state",piState,"stance",piStance,"jump",bFar);
       }
 
-      if bFar
+      if bFar AND Send(Send(SYS,@GetSettings),@GetCompanionTeleport)
       {
          piStuck = 0;
          Send(poOwner,@SomethingMoved,#what=self,#new_row=Send(poMaster,@GetRow),#new_col=Send(poMaster,@GetCol),
@@ -651,6 +654,26 @@ messages:
       return;
    }
 
+   HasRoute(oMon = $)
+   "Can we walk to this monster?  In reach already, or a walkable path of at most 25 cells (the room's walk grid, so walls count)."
+   {
+      local lPath;
+
+      if oMon = $ OR Send(oMon,@GetOwner) <> poOwner
+      {
+         return FALSE;
+      }
+
+      if Send(self,@CanReach,#what=oMon)
+      {
+         return TRUE;
+      }
+
+      lPath = Send(poOwner,@FindPath,#row=piRow,#col=piCol,#goal_row=Send(oMon,@GetRow),#goal_col=Send(oMon,@GetCol));
+
+      return lPath <> $ AND Length(lPath) <= 25;
+   }
+
    EnterStateChase(target = $, actnow = TRUE)
    "While chasing or fighting, the monster AI would walk back to the master whenever he is closer than the target: switch following off."
    {
@@ -682,6 +705,15 @@ messages:
 
    EngageTarget(oTarget = $)
    {
+      % no way to get there (behind a wall): don't stand around chasing it
+      if NOT Send(self,@HasRoute,#oMon=oTarget)
+      {
+         poIgnoreTarget = oTarget;
+         piIgnoreTicks = 12;
+
+         return;
+      }
+
       Send(self,@TargetSwitch,#what=oTarget,#iHatred=1000);
       if Send(self,@CanReach,#what=oTarget)
       {
@@ -724,6 +756,17 @@ messages:
       piStance = 1;
       Send(self,@SetBehaviorFlag,#flag=AI_NOFIGHT,#value=TRUE);
       Send(self,@EnterStateWait,#actnow=TRUE);
+
+      return;
+   }
+
+   TweakBehavior()
+   "Enchantments reset the behavior flags; keep the passive order."
+   {
+      if piStance = 1
+      {
+         Send(self,@SetBehaviorFlag,#flag=AI_NOFIGHT,#value=TRUE);
+      }
 
       return;
    }
@@ -842,10 +885,32 @@ messages:
       return NOT Send(oTarget,@IsEnchanted,#what=oSpell);
    }
 
-   PickTarget()
-   "Assists the group: fights what the master attacks, or whatever is attacking a member of the group.  Peaceful monsters are left alone."
+   IsRanged()
+   "Ranged roles (mage, fighter) fight from a distance; the others wait for the enemy to come to them."
    {
-      local oBest, oKill, i, oObj, oHisTarget;
+      return FALSE;
+   }
+
+   WantsToEngage(oMon = $, iDist = $)
+   "Is this monster close enough to fight?  Melee roles: it came within 7 squares.  Ranged roles: it is within 12 squares and in line of sight."
+   {
+      if oMon = $ OR iDist = $
+      {
+         return FALSE;
+      }
+
+      if Send(self,@IsRanged)
+      {
+         return iDist <= 144 AND Send(poOwner,@LineOfSight,#obj1=self,#obj2=oMon);
+      }
+
+      return iDist <= 49;
+   }
+
+   PickTarget()
+   "Assists the group: fights what the master attacks, or what is attacking a member of the group, but only when it is close enough (see WantsToEngage).  Peaceful monsters are left alone."
+   {
+      local oBest, oKill, i, oObj, oHisTarget, iDist, iBest;
 
       if piStance = 1
       {
@@ -854,28 +919,35 @@ messages:
 
       if poTarget <> $ AND Send(self,@IsHostileMonster,#oMon=poTarget)
       {
+         % do not run after something that has got far away
+         if Send(self,@SquaredDistanceTo,#what=poTarget) > 196
+         {
+            poIgnoreTarget = poTarget;
+            piIgnoreTicks = 12;
+            poTarget = $;
+            Send(self,@EnterStateWait,#actnow=TRUE);
+         }
+
          return;
       }
 
       oBest = $;
+      iBest = 100000;
       oKill = Send(poMaster,@GetKillTarget);
-      if Send(self,@IsHostileMonster,#oMon=oKill)
+      for i in Send(poOwner,@GetHolderActive)
       {
-         oBest = oKill;
-      }
-      else
-      {
-         for i in Send(poOwner,@GetHolderActive)
+         oObj = Send(poOwner,@HolderExtractObject,#data=i);
+         if Send(self,@IsHostileMonster,#oMon=oObj)
          {
-            oObj = Send(poOwner,@HolderExtractObject,#data=i);
-            if Send(self,@IsHostileMonster,#oMon=oObj)
+            oHisTarget = Send(oObj,@GetTarget);
+            if oObj = oKill
+               OR (oHisTarget <> $ AND poGroup <> $ AND Send(poGroup,@IsMember,#what=oHisTarget))
             {
-               oHisTarget = Send(oObj,@GetTarget);
-               if oHisTarget <> $ AND poGroup <> $ AND Send(poGroup,@IsMember,#what=oHisTarget)
+               iDist = Send(self,@SquaredDistanceTo,#what=oObj);
+               if iDist <> $ AND iDist < iBest AND Send(self,@WantsToEngage,#oMon=oObj,#iDist=iDist)
                {
+                  iBest = iDist;
                   oBest = oObj;
-
-                  break;
                }
             }
          }
@@ -883,6 +955,14 @@ messages:
 
       if oBest = $
       {
+         return;
+      }
+
+      if NOT Send(self,@HasRoute,#oMon=oBest)
+      {
+         poIgnoreTarget = oBest;
+         piIgnoreTicks = 12;
+
          return;
       }
 

@@ -1,0 +1,71 @@
+% Custom: companion fighter: shoots a bow from a distance (no archery skill needed) and fights in melee when the enemy gets close.
+
+CompanionFighter is Companion
+
+constants:
+
+   include blakston.khd
+   include protocol.khd
+
+resources:
+
+   compfght_name_rsc = "fighter companion"
+   compfght_dead_name_rsc = "dead fighter companion"
+
+classvars:
+
+   vrDead_name = compfght_dead_name_rsc
+   viRole = COMPANION_ROLE_FIGHTER
+   viColorTranslate1 = XLAT_TO_DGREEN
+   viColorTranslate2 = XLAT_TO_ORANGE
+
+properties:
+
+messages:
+
+   AdjustStats()
+   {
+      % a fighter hits a little harder than a mage but is not as tough as a tank
+      piOffense = 120 + (piEcl * 10);
+      piDefense = 100 + (piEcl * 8);
+      piMinDamage = 2 + (piEcl / 8);
+      piMaxDamage = 4 + (piEcl / 3);
+
+      return;
+   }
+
+   SetEquipment()
+   {
+      send(self,@AddEquipmentObject,#what=create(&Bow));
+      send(self,@SetTroopArmor,#NewArmor=create(&LeatherArmor));
+
+      return;
+   }
+
+   IsRanged()
+   {
+      return TRUE;
+   }
+
+   GetAttackRange()
+   "The bow reaches nine squares (line of sight); closer than that the fighter keeps shooting until the enemy is in its face, then it is simply a melee fight."
+   {
+      return 9;
+   }
+
+   MonsterAttack(what = $)
+   "Called right before the attack roll: at a distance, show an arrow flying."
+   {
+      local oArrow;
+
+      if what <> $ AND poOwner <> $ AND Send(self,@SquaredDistanceTo,#what=what) > 9
+      {
+         oArrow = Create(&Arrow);
+         Send(poOwner,@SomethingShot,#who=self,#target=what,#projectile=oArrow);
+         Send(oArrow,@Delete);
+      }
+
+      propagate;
+   }
+
+end

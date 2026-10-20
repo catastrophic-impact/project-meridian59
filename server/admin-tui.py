@@ -358,6 +358,10 @@ class AdminApp(App):
         self.set_interval(5, self.refresh_status)
 
     async def _initial_load(self):
+        if not port_open(GAME_PORT) and os.environ.get("M59_NO_AUTOSTART") != "1":
+            self.query_one(TabbedContent).active = "tab-server"
+            self.srv_log("The server is not running: starting it for you (set M59_NO_AUTOSTART=1 to turn this off).")
+            await self.start_server()
         await self.refresh_status()
         await self.refresh_accounts()
         await self.refresh_settings()
@@ -517,6 +521,21 @@ class AdminApp(App):
         w.write(out or "(nobody)")
         w.write("")
         w.write(await self.link.run("show users") or "")
+
+    async def action_quit(self):
+        """Ctrl+Q: when the server is running, ask whether to stop it as well."""
+        if not (port_open(GAME_PORT) or port_open(PORT)):
+            self.exit()
+            return
+
+        def done(stop):
+            self.run_worker(self._quit_after(stop))
+        self.push_screen(ConfirmModal("Stop the server too (saves the game first)?\nYes = stop it, No = leave it running."), done)
+
+    async def _quit_after(self, stop):
+        if stop:
+            await self.stop_server()
+        self.exit()
 
     async def action_refresh_all(self):
         await self.refresh_status()

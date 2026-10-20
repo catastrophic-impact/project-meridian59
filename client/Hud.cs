@@ -322,7 +322,10 @@ public class HudManager
         reset.Pressed += ResetLayout;
         box.AddChild(lockCheck); box.AddChild(scaleLabel); box.AddChild(scaleSlider); box.AddChild(reset);
         InterfaceBox = box;
-        Add("interface", "Interface", box, new Vector2(-0.02f, 0.06f), new Vector2(260, 350), resizable: false, visibleByDefault: false);
+        box.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        var scroll = new ScrollContainer { ClipContents = true, HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled };
+        scroll.AddChild(box);
+        Add("interface", "Interface", scroll, new Vector2(-0.02f, 0.06f), new Vector2(300, 420), resizable: true, visibleByDefault: false);
     }
 
     // ------------------------------------------------------------ top bar (rest button, window buttons, menu)

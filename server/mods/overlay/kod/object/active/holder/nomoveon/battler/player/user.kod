@@ -5428,7 +5428,14 @@ messages:
             }
             else
             {
-               return;
+               if iRole = COMPANION_ROLE_FIGHTER
+               {
+                  cClass = &CompanionFighter;
+               }
+               else
+               {
+                  return;
+               }
             }
          }
       }

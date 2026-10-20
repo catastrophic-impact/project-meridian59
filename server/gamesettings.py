@@ -8,7 +8,7 @@ DEATH_RULE = {0: "Never", 1: "Only killed by a player (PvP)", 2: "Only killed by
 SETTINGS = [
     ("Death", "piDeathItemDrop", "Items drop on death", "choice", DEATH_RULE,
      "Whose kills make the dead player drop their belongings onto the corpse."),
-    ("Death", "piDeathStatLoss", "Lose max HP / skills on death", "choice", DEATH_RULE,
+    ("Death", "piDeathStatLoss", "Lose HP / skills on death", "choice", DEATH_RULE,
      "Whose kills cost the dead player max health and skill/spell percents (the original 'death cost')."),
     ("Death", "pbDeathStartAtOne", "Wake up at 1 HP / 1 mana / 1 stamina", "bool", None,
      "After death the player starts in the underworld with 1 health, 1 mana and 1 vigor and must rest."),
@@ -35,6 +35,8 @@ SETTINGS = [
     ("Gameplay", "piMobAggroMode", "Mob aggro mode", "choice", {0: "Original (one chaser limits the others)", 1: "Proximity (WoW / DAoC style)"}, "1 = WoW / DAoC style: every aggressive monster that a player comes close to (see radius) goes for them, any number at once. 0 = original: a monster already chasing someone talks the others out of it."),
     ("Gameplay", "piMobAggroRadius", "Mob aggro radius (squares)", "int", None, "Proximity mode: how close a player must come before an aggressive monster notices them."),
     ("Gameplay", "pbCompanionDebug", "Companion debug log", "bool", None, "Writes what each companion bot decides (distance to its owner, stuck checks, state) to the server debug log (server/channel/debug-*.txt). For testing."),
+    ("Gameplay", "piLOS", "Walls / line of sight accuracy", "choice", {0: "Original (coarse grid)", 1: "Accurate for monsters", 2: "Accurate for players", 3: "Accurate for both"}, "Which movement grid the server uses to decide where creatures can walk and see. The accurate one matches the real walls (mobs stop getting stuck where players can walk)."),
+    ("Gameplay", "pbCompanionTeleport", "Companions teleport when far / stuck", "bool", None, "On: a companion that is very far away or stuck jumps to its owner. Off: it must walk (use this to test movement and pathing)."),
     ("Economy", "piMoneyFactor", "Money drop factor %", "int", None, "Raise to give out more money (100 = original)."),
     ("Economy", "piItemFactor", "Monster item drop factor %", "int", None, "Raise to drop more items from monsters (100 = original)."),
     ("Economy", "piMagicItemModifier", "Magic item chance %", "int", None, "Modifier to the chance for magic items to be generated."),
