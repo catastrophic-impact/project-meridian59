@@ -300,7 +300,7 @@ public partial class Main : Node
     {
         if (AnimLog && loginPanel != null && loginPanel.Visible && Time.GetTicksMsec() > loginAudioLogAt) { loginAudioLogAt = Time.GetTicksMsec() + 2000; GD.Print($"[audio] login screen, sound playing: {audio.AnyPlaying}"); }
         if (hud != null) hud.Visible = !onlineMode || (client != null && client.IsAdmin && audioSettings.ShowDebug);   // debug text: admins only, toggled in F6 > Debug
-        if (onlineMode) { OnlineProcess(); UpdatePov(delta); UpdateScreenEffects((float)delta); UpdateBuffBar(); UpdateDebugLog(); UpdateFloatTexts((float)delta); UpdateWeather((float)delta); UpdateNameOcclusion(); TradeTestTick(); if (weaponAskAt > 0 && Time.GetTicksMsec() / 1000.0 >= weaponAskAt) { weaponAskAt = 0; client.RequestWeapon(); } } else UpdateRoomAnimations();
+        if (onlineMode) { OnlineProcess(); UpdatePov(delta); UpdateScreenEffects((float)delta); UpdateBuffBar(); UpdateDebugLog(); UpdateFloatTexts((float)delta); UpdateWeather((float)delta); UpdateNameOcclusion(); PollDetails(); TradeTestTick(); if (weaponAskAt > 0 && Time.GetTicksMsec() / 1000.0 >= weaponAskAt) { weaponAskAt = 0; client.RequestWeapon(); } } else UpdateRoomAnimations();
 
         if (onlineMode && roomShown && currentRoom != null) WalkProcess((float)delta);
         RunTestHooks();
@@ -669,7 +669,7 @@ public partial class Main : Node
         if (!client.IsAdmin) { var aw = hudMgr?.Get("admin"); if (aw != null && aw.Visible) hudMgr.Toggle("admin"); }   // a saved layout must not show admin tools to a normal account
         if (optAdminWin && client.IsAdmin) { optAdminWin = false; if (hudMgr?.Get("admin")?.Content is TabContainer tc0) { tc0.CurrentTab = 1; RefreshAdminTargets(); } var aw0 = hudMgr?.Get("admin"); if (aw0 != null && !aw0.Visible) hudMgr.Toggle("admin"); if (adminFilter != null) adminFilter.Text = "cor"; FillAdminList(); }
         hudMgr.Root.Visible = System.Environment.GetEnvironmentVariable("M59_HIDEHUD") != "1";   // M59_HIDEHUD=1: a clean view for screenshots
-        foreach (var wn in (System.Environment.GetEnvironmentVariable("M59_OPENWIN") ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries)) { var hw = hudMgr.Get(wn); if (hw != null && !hw.Visible) { if (wn == "who") ToggleWho(); else if (wn == "mail") ToggleMail(); else if (wn == "guild") ToggleGuild(); else hudMgr.Toggle(wn); } }   // test hook
+        foreach (var wn in (System.Environment.GetEnvironmentVariable("M59_OPENWIN") ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries)) { var hw = hudMgr.Get(wn); if (hw != null && !hw.Visible) { if (wn == "who") ToggleWho(); else if (wn == "mail") ToggleMail(); else if (wn == "guild") ToggleGuild(); else if (wn == "details") ToggleDetails(); else hudMgr.Toggle(wn); } }   // test hook
         if (buffRow != null) buffRow.Visible = true;
         if (miniMap != null) miniMap.SavePath = Path.GetFullPath(ProjectSettings.GlobalizePath("res://../userdata/map_" + (client.CharacterName ?? "x").Replace('/', '_') + ".json"));
         miniMap?.SetRoom(currentRoom, Path.GetFileName(path));
@@ -1468,6 +1468,7 @@ public partial class Main : Node
         BuildGroupUi();
         BuildTradeUi();
         BuildSocialUi();
+        BuildDetailsUi();
         BuildKeysUi();
         hudMgr.FitSettingsWindows();
         BuildSpellWindows();

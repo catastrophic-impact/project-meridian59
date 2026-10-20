@@ -4910,6 +4910,102 @@ messages:
       return;
    }
 
+   SendStatsDetail(oTarget = $)
+   "Custom: the numbers behind the character, for the client's details window.  Rows of (id, a, b); the client knows the labels."
+   "Ids: 1-6 attributes (effective, raw), 7 karma, 10 health, 11 mana, 12 vigor (current, max), 13 max health (now, base), 14 bulk, 15 weight (current, max),"
+   "20 offense (total, from gear and effects), 21 stroke skill, 22 proficiency, 24 chance to hit the target (percent), 25 target defense,"
+   "30 defense (total, from gear and effects), 31 parry, 32 block, 33 dodge, 34 chance the target hits us (percent), 35 target offense,"
+   "36 universal modifier percent, 40 resistance (attack type, value; weapon types positive, spell types negative)."
+   {
+      local lRows, i, oWeapon, iStroke, iProf, iOff, iDef, iBase, iParry, iBlock, iDodge, iTDef, iTOff, iChance, iCount;
+
+      if NOT pbLogged_on OR poSession = $
+      {
+         return;
+      }
+
+      if oTarget <> $ AND NOT IsClass(oTarget,&Battler)
+      {
+         oTarget = $;
+      }
+
+      lRows = $;
+      lRows = Cons([1,Send(self,@GetMight),Send(self,@GetRawMight)],lRows);
+      lRows = Cons([2,Send(self,@GetIntellect),Send(self,@GetRawIntellect)],lRows);
+      lRows = Cons([3,Send(self,@GetAgility),Send(self,@GetRawAgility)],lRows);
+      lRows = Cons([4,Send(self,@GetAim),Send(self,@GetRawAim)],lRows);
+      lRows = Cons([5,Send(self,@GetStamina),Send(self,@GetRawStamina)],lRows);
+      lRows = Cons([6,Send(self,@GetMysticism),Send(self,@GetRawMysticism)],lRows);
+      lRows = Cons([7,Send(self,@GetKarma),0],lRows);
+
+      lRows = Cons([10,Send(self,@GetHealth),Send(self,@GetMaxHealth)],lRows);
+      lRows = Cons([11,Send(self,@GetMana),Send(self,@GetMaxMana)],lRows);
+      lRows = Cons([12,Send(self,@GetVigor),Send(self,@GetVigorRestThreshold)],lRows);
+      lRows = Cons([13,Send(self,@GetMaxHealth),Send(self,@GetBaseMaxHealth)],lRows);
+      lRows = Cons([14,piBulk_hold,Send(self,@GetBulkMax)],lRows);
+      lRows = Cons([15,piWeight_hold,Send(self,@GetWeightMax)],lRows);
+
+      % offense, as GetOffense builds it: stroke*3 + proficiency*2 + aim*4 + max health*3/2, then weapon, effects, faction and the universal modifier
+      oWeapon = Send(self,@GetWeapon);
+      if oWeapon <> $
+      {
+         iStroke = Send(oWeapon,@GetStroke,#who=self);
+         iProf = Send(oWeapon,@GetProf,#who=self);
+      }
+      else
+      {
+         iStroke = Send(self,@GetSkillAbility,#skill_num=SKID_PUNCH);
+         iProf = Send(self,@GetSkillAbility,#skill_num=SKID_BRAWLING);
+      }
+
+      iOff = Send(self,@GetOffense,#what=oTarget);
+      iBase = (iStroke*3) + (iProf*2) + (Send(self,@GetAim)*4) + (piBase_Max_Health*3/2);
+      lRows = Cons([20,iOff,iOff-iBase],lRows);
+      lRows = Cons([21,iStroke,0],lRows);
+      lRows = Cons([22,iProf,0],lRows);
+
+      % defense: parry*2 + block + dodge*3 + agility*4 + max health*3/2, then effects, faction and the universal modifier
+      iDef = Send(self,@GetDefense,#what=oTarget);
+      iParry = Send(self,@GetParryAbility);
+      iBlock = Send(self,@GetBlockAbility);
+      iDodge = Send(self,@GetDodgeAbility);
+      iBase = (iParry*2) + iBlock + (iDodge*3) + (Send(self,@GetAgility)*4) + (piBase_Max_Health*3/2);
+      lRows = Cons([30,iDef,iDef-iBase],lRows);
+      lRows = Cons([31,iParry,0],lRows);
+      lRows = Cons([32,iBlock,0],lRows);
+      lRows = Cons([33,iDodge,0],lRows);
+      lRows = Cons([36,piFlags3,0],lRows);
+
+      if oTarget <> $
+      {
+         % the hit chance formula of Battler.TryAttack: offense * 55 / defense, kept between 10 and 95 percent
+         iTDef = Send(oTarget,@GetDefense,#what=self);
+         iChance = bound((iOff * 55) / iTDef,10,95);
+         lRows = Cons([24,iChance,0],lRows);
+         lRows = Cons([25,iTDef,0],lRows);
+
+         iTOff = Send(oTarget,@GetOffense,#what=self);
+         iChance = bound((iTOff * 55) / iDef,10,95);
+         lRows = Cons([34,iChance,0],lRows);
+         lRows = Cons([35,iTOff,0],lRows);
+      }
+
+      for i in plResistances
+      {
+         lRows = Cons([40,Nth(i,2),Nth(i,1)],lRows);
+      }
+
+      iCount = Length(lRows);
+      AddPacket(1,BP_EXT_GAME, 1,EXT_MSG_DETAILS, 1,iCount);
+      for i in lRows
+      {
+         AddPacket(1,First(i), 4,Nth(i,2), 4,Nth(i,3));
+      }
+      SendPacket(poSession);
+
+      return;
+   }
+
    SendWeapon()
    "Custom: which item we fight with (0 = bare hands, or a touch spell), and 1 melee / 2 ranged; our client shows it as the Attack icon."
    {
@@ -5052,6 +5148,16 @@ messages:
       if iSub = EXT_CMD_WEAPON
       {
          Send(self,@SendWeapon);
+      }
+
+      if iSub = EXT_CMD_STATS
+      {
+         if oObj = self
+         {
+            oObj = $;
+         }
+
+         Send(self,@SendStatsDetail,#oTarget=oObj);
       }
 
       if iSub = EXT_CMD_TARGET_HEALTH

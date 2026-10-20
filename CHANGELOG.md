@@ -10,6 +10,10 @@ Newest first. Each push to GitHub gets an entry.
 - **Who**: the list of players who are online, kept up to date as people come and go. Double-click a name (or "Send mail") to write to them.
 - **Guild**: your guild's name, your rank and its members, with Invite target, Exile, Leave, Hand over and Disband (greyed out when your rank may not do it). When the server offers to found a guild you can pick the name and the five rank titles.
 
+### Details (stats) window
+- New **Stats** button on the top bar opens a window with the numbers the server keeps behind the character, refreshed every 1.5 seconds: attributes (current value, base value and what effects such as Bless add or take away, in green or red), vitals (health, mana, vigor, carried bulk and weight), **offense** and **defense** ratings with what gear and effects contribute, weapon skill and proficiency, the **universal bonus**, your **chance to hit the creature you have targeted and its chance to hit you** (the server's own hit formula, 10 to 95 percent), and your **resistances and weaknesses** by attack type.
+- Works with our server only (new extension message `EXT_MSG_DETAILS`); damage per hit, regeneration and more are planned.
+
 ### Window and layouts
 - The client now starts **maximized**; F11 or the Interface window's "Full screen" switch toggles real full screen (and back to maximized).
 - **Layout templates**: in the Interface window pick a ready-made window layout and press Use, or arrange your windows and save them under a name. Your own layouts are in `userdata/layouts`; layouts shipped with the client go in `client/layouts`.

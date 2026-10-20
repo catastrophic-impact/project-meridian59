@@ -224,6 +224,7 @@
    EXT_CMD_COMPANION_DISMISS = 11
    EXT_CMD_TARGET_HEALTH    = 20
    EXT_CMD_WEAPON           = 21
+   EXT_CMD_STATS            = 22
    % Server -> client: BP_EXT_GAME [sub type, ...]
    EXT_CMD_COMPANION_ATTACK  = 12
    EXT_CMD_COMPANION_PASSIVE = 13
@@ -236,6 +237,7 @@
    EXT_MSG_COMBAT           = 5
    EXT_MSG_WEATHER          = 6
    EXT_MSG_WEAPON           = 7
+   EXT_MSG_DETAILS          = 8
    % Companion roles
    COMPANION_ROLE_MAGE      = 1
    COMPANION_ROLE_HEALER    = 2

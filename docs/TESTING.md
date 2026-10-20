@@ -20,7 +20,7 @@ Flags (parsed at the top of `client/Main.cs`): `--connect user pw`, `--host`, `-
 
 | Variable | What it does |
 | --- | --- |
-| `M59_OPENWIN=who,mail,guild,interface,keys,...` | open these windows at start |
+| `M59_OPENWIN=who,mail,guild,details,interface,keys,...` | open these windows at start |
 | `M59_TRADETEST=buy\|offer\|withdraw\|deposit\|look` | start that trade with the nearest suitable object (`M59_TRADEAUTO=1` picks and accepts by itself, `M59_TRADEITEM=<name>`, `M59_TRADEPLAYER=1` targets players, `M59_TRADELOOP=1` repeats) |
 | `M59_MAILTEST="to\|subject\|text"` | send a letter a few seconds after login |
 | `M59_GUILDTEST=<name>` | found a guild when the server offers to |
@@ -42,6 +42,7 @@ Server side (`server/`): `M59_NO_AUTOSTART=1` stops the admin TUI from starting 
 - `send object <user> TeleportTo RID int <rid>` (rooms in `server/rooms.json`)
 - `send object 0 SetWeather iZone int 1 iIntensity int 4 bStorm int 1`
 - `send object <room> ToggleCenterLight` (Brax arena, RID 579: texture change), `AnimateWall` (doors, RID 708)
-- `send object <user> SendCreateGuild`, `send object <user> SendWeapon`
+- `send object <user> SendCreateGuild`, `send object <user> SendWeapon`, `send object <user> SendStatsDetail`
+- fake effects: `set object <user> piMightMod int 10` (and the other `pi<Stat>Mod`), `set object <user> piFlags3 int 20` (universal bonus %), `send object <user> AddResistance what int -2 value int 30` (negative type = spell type, here fire)
 - give things: `create object Money number int 5000` then `send object <user> NewHold what object <id>`
 - never change the `dad` / `dadtest` password, and refill dadtest's stamina after tests on that character

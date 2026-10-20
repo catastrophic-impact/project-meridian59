@@ -185,6 +185,8 @@ public class GameClient
     public event Action<uint, byte> WeaponReceived;          // item id of the weapon we fight with (0 = bare hands), 1 melee / 2 ranged
     public event Action EquipmentChanged;
     public void RequestWeapon() => SendExt(21, PlayerId, 0);
+    public event Action<List<(byte id, int a, int b)>> DetailsReceived;      // the numbers behind the character (our server only), see user.kod SendStatsDetail
+    public void RequestDetails(uint target) => SendExt(22, SelfOrZero(target), 0);
 
     void HandleExt(byte[] d)
     {
@@ -203,6 +205,13 @@ public class GameClient
             case 2: { uint from = r.ReadUInt32(); GroupInviteReceived?.Invoke(from, Str()); break; }
             case 3: { uint id = r.ReadUInt32(); TargetHealthReceived?.Invoke(id, r.ReadByte()); break; }
             case 5: { uint v = r.ReadUInt32(), a = r.ReadUInt32(); int amt = r.ReadUInt16(); byte kind = r.ReadByte(); CombatNumberReceived?.Invoke(v, a, amt, kind); break; }
+            case 8:
+                {
+                    int n = r.ReadByte(); var rows = new List<(byte, int, int)>();
+                    for (int i = 0; i < n; i++) rows.Add((r.ReadByte(), r.ReadInt32(), r.ReadInt32()));
+                    DetailsReceived?.Invoke(rows);
+                    break;
+                }
             case 7: { uint wid = r.ReadUInt32(); WeaponReceived?.Invoke(wid, r.ReadByte()); break; }
             case 6: { int inten = r.ReadByte(); bool storm = r.ReadByte() != 0; WeatherReceived?.Invoke(inten, storm); break; }
             case 4:

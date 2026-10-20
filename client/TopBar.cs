@@ -50,6 +50,7 @@ public partial class Main
         hudMgr.AddBarButton("Guild", "Your guild: members, invite, leave", () => ToggleGuild());
         hudMgr.AddBarSeparator();
         hudMgr.AddBarButton("Character", "Show / hide the character window", () => hudMgr.Toggle("status"));
+        hudMgr.AddBarButton("Stats", "Detailed numbers: attributes, offense, defense, hit chances, resistances", () => ToggleDetails());
         hudMgr.AddBarButton("Map", "Show / hide the map", () => hudMgr.Toggle("map"));
         hudMgr.AddBarButton("Chat", "Show / hide the chat window", () => hudMgr.Toggle("chat"));
         hudMgr.AddBarButton("Hotbar", "Show / hide the hotbar", () => hudMgr.Toggle("hotbar"));
