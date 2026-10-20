@@ -540,18 +540,20 @@ messages:
    }
 
    RegenerateCompanion()
-   "Mana comes back slowly; much faster while the master is resting (companions rest with their master)."
+   "Companions always regenerate like a player with 200 vigor (the best there is): mana comes back quickly, health steadily; much faster while the master rests."
    {
-      local iGain;
+      local iGain, iHeal;
 
-      iGain = piMaxMana / 40;
+      iGain = piMaxMana / 16;
+      iHeal = piMax_hit_points / 40;
       if poMaster <> $ AND IsClass(poMaster,&Player) AND Send(poMaster,@IsResting)
       {
          iGain = piMaxMana / 8;
-         if piHit_points < piMax_hit_points
-         {
-            piHit_points = bound(piHit_points + (piMax_hit_points / 8),1,piMax_hit_points);
-         }
+         iHeal = piMax_hit_points / 8;
+      }
+      if piHit_points < piMax_hit_points
+      {
+         piHit_points = bound(piHit_points + Bound(iHeal,1,$),1,piMax_hit_points);
       }
       piMana = bound(piMana + Bound(iGain,1,200),0,piMaxMana);
 
@@ -986,10 +988,10 @@ messages:
 
    % Casts <oSpell> at <oTarget> as this companion.  Spell power follows the effective level.
    CastAt(num = 0, oTarget = $)
-   "Companions have no reagents: while the server runs the 'weaker without reagents' mode their spells are scaled like a player's. "
+   "Companions never run out of reagents and are not subject to the 'weaker without reagents' rule. "
    "They only use spells their effective level allows, and each cast costs mana."
    {
-      local oSpell, oSettings, bActive, iCost, iPower;
+      local oSpell, iCost, iPower;
 
       oSpell = Send(SYS,@FindSpellByNum,#num=num);
       if oSpell = $ OR oTarget = $
@@ -1015,19 +1017,8 @@ messages:
       }
       piMana = piMana - iCost;
 
-      oSettings = Send(SYS,@GetSettings);
-      bActive = (Send(oSettings,@GetReagentMode) = 2 AND NOT IsClass(oSpell,&PersonalEnchantment));
-      if bActive
-      {
-         Send(oSettings,@SetNoReagentActive,#value=TRUE);
-      }
-
+      % companions always have every reagent: the 'weaker without reagents' rule is for players
       Send(oSpell,@CastSpell,#who=self,#lTargets=[oTarget],#iSpellPower=iPower);
-
-      if bActive
-      {
-         Send(oSettings,@SetNoReagentActive,#value=FALSE);
-      }
 
       return TRUE;
    }

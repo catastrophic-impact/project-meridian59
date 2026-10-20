@@ -21,7 +21,78 @@ classvars:
 
 properties:
 
+   % the arrow chosen for the current target (the fighter has endless arrows of every kind)
+   piArrowType = 0
+   piArrowSpell = 0
+   piArrowBonus = 0
+
 messages:
+
+   ChooseArrow(what = $)
+   "Picks the arrow kind the target is weakest against (nerudite, fire, silver, plain): that is the best arrow for the situation."
+   {
+      local iBest, iResist, i, lArrows;
+
+      % [attack type, spell type, extra damage, class]
+      lArrows = [ [ATCK_WEAP_PIERCE + ATCK_WEAP_NERUDITE, 0, 1, &NeruditeArrow],
+                  [ATCK_WEAP_PIERCE, ATCK_SPELL_FIRE, 1, &FireArrow],
+                  [ATCK_WEAP_PIERCE + ATCK_WEAP_SILVER, 0, 0, &SilverArrow],
+                  [ATCK_WEAP_PIERCE, 0, 0, &Arrow] ];
+      piArrowType = ATCK_WEAP_PIERCE;
+      piArrowSpell = 0;
+      piArrowBonus = 0;
+      iBest = 1000;
+      if what = $ OR NOT IsClass(what,&Battler)
+      {
+         return &Arrow;
+      }
+
+      for i in lArrows
+      {
+         iResist = Send(what,@ResistanceCheck,#atype=First(i),#aspell=Nth(i,2));
+         iResist = iResist - Nth(i,3);
+         if iResist < iBest
+         {
+            iBest = iResist;
+            piArrowType = First(i);
+            piArrowSpell = Nth(i,2);
+            piArrowBonus = Nth(i,3);
+         }
+      }
+
+      piMinDamage = 1 + (piEcl / 20) + piArrowBonus;
+      piMaxDamage = 5 + (piEcl / 10) + piArrowBonus;
+
+      for i in lArrows
+      {
+         if First(i) = piArrowType AND Nth(i,2) = piArrowSpell
+         {
+            return Nth(i,4);
+         }
+      }
+
+      return &Arrow;
+   }
+
+   GetDamageType(what = $)
+   {
+      if piArrowType <> 0
+      {
+         return piArrowType;
+      }
+
+      propagate;
+   }
+
+   GetSpellType(what = $)
+   {
+      if piArrowType <> 0
+      {
+         return piArrowSpell;
+      }
+
+      propagate;
+   }
 
    AdjustStats()
    {
@@ -65,9 +136,12 @@ messages:
    {
       local oArrow;
 
+      piArrowType = 0;
+      piMinDamage = 1 + (piEcl / 20);
+      piMaxDamage = 5 + (piEcl / 10);
       if what <> $ AND poOwner <> $ AND Send(self,@SquaredDistanceTo,#what=what) > 9
       {
-         oArrow = Create(&Arrow);
+         oArrow = Create(Send(self,@ChooseArrow,#what=what));
          Send(poOwner,@SomethingShot,#who=self,#target=what,#projectile=oArrow);
          Send(oArrow,@Delete);
       }
