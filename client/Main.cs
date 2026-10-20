@@ -1244,7 +1244,7 @@ public partial class Main : Node
                     float sgn = a.Backwards ? -1f : 1f;
                     u = sgn * xo * a.Shrink / a.TexH; v = -sgn * yo * a.Shrink / a.TexW;
                 }
-                else { u = -yo / 64f; v = xo / 64f; }
+                else { u = -yo / 1024f; v = xo / 1024f; }   // floors / ceilings: one step = 1/1024 of a tile (official: offset in world units, texture coords scaled by 1/(64*PETER_FUDGE))
                 a.Mat.SetShaderParameter("uv_off", new Vector2(u - Mathf.Floor(u), v - Mathf.Floor(v)));
             }
         }

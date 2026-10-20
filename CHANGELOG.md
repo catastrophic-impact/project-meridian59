@@ -18,6 +18,7 @@ Newest first. Each push to GitHub gets an entry.
 - The client moves other creatures through every position the server reports, and teleports appear instantly instead of sliding through walls.
 
 ### Client
+- **Water and other scrolling floors** now flow at the original speed. They were moving 16 times too fast, which made ponds like the one in Raza look like rivers.
 - **Shops and trading**: right-click a shop keeper, banker or player and the Look window shows the trade buttons that apply (Buy, Sell / offer, and Withdraw / Deposit for bankers). Buying shows the seller's list with prices and amounts; offers to players or shop keepers open an offer window where the other side's answer appears and you accept or cancel.
 - The Look window text is smaller and scrolls when a description is long.
 - **Doors and animated walls**: the client now follows the server's wall changes (guild hall doors, secret walls, clock faces): texture changes, one-shot and looping animations, and walls that become passable, impassable or invisible.
