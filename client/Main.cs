@@ -252,28 +252,29 @@ public partial class Main : Node
         }
         if (e is InputEventKey k && k.Pressed && !k.Echo)
         {
+            if (CaptureKey(k)) { GetViewport().SetInputAsHandled(); return; }
             if (chatFocused) { if (k.Keycode == Key.Escape) { CloseChatInput(false); GetViewport().SetInputAsHandled(); } }
-            else if (onlineMode && roomShown && (k.Keycode == Key.Enter || k.Keycode == Key.KpEnter)) { OpenChatInput(); GetViewport().SetInputAsHandled(); }
+            else if (onlineMode && roomShown && Pressed("chat", k)) { OpenChatInput(); GetViewport().SetInputAsHandled(); }
             else if (k.Keycode == Key.Escape) { if (onlineMode && roomShown) ToggleGameMenu(); else Input.MouseMode = Input.MouseModeEnum.Visible; }
             else if (k.Keycode == Key.F10 && hudMgr != null) hudMgr.Toggle("interface");
-            else if (k.Keycode == Key.V && onlineMode && roomShown && !chatFocused && !k.CtrlPressed) { ToggleThirdPerson(); GetViewport().SetInputAsHandled(); }
+            else if (Pressed("camera", k) && onlineMode && roomShown && !chatFocused && !k.CtrlPressed) { ToggleThirdPerson(); GetViewport().SetInputAsHandled(); }
             else if (k.Keycode == Key.F6 && onlineMode && roomShown && client.IsAdmin) { hudMgr?.Toggle("admin"); GetViewport().SetInputAsHandled(); }
             else if (k.Keycode == Key.F9 && onlineMode && roomShown) { WhereReport(""); GetViewport().SetInputAsHandled(); }
-            else if (k.Keycode == Key.Space && onlineMode && roomShown && !chatFocused)
+            else if (Pressed("use", k) && onlineMode && roomShown && !chatFocused)
             {
                 if (invActive && packTabs.CurrentTab == 0 && selectedItemId != 0) ToggleUse(selectedItemId);
                 else if (walker != null) client.GoThrough(walker.X, walker.Y);     // doors, stairs, portals
                 GetViewport().SetInputAsHandled();
             }
-            else if (k.Keycode == Key.F && onlineMode && roomShown && !chatFocused) { Attack(); GetViewport().SetInputAsHandled(); }
-            else if (k.Keycode == Key.R && onlineMode && roomShown && !chatFocused && !k.CtrlPressed)
+            else if (Pressed("attack", k) && onlineMode && roomShown && !chatFocused) { Attack(); GetViewport().SetInputAsHandled(); }
+            else if (Pressed("rest", k) && onlineMode && roomShown && !chatFocused && !k.CtrlPressed)
             { SetResting(!resting); GetViewport().SetInputAsHandled(); }
             else if (k.Keycode >= Key.Key0 && k.Keycode <= Key.Key9 && onlineMode && roomShown && !chatFocused && !k.CtrlPressed)
             { ActivateHotbar(k.Keycode == Key.Key0 ? 9 : (int)(k.Keycode - Key.Key1)); GetViewport().SetInputAsHandled(); }
-            else if (onlineMode && roomShown && !chatFocused && !k.CtrlPressed && (k.Keycode == Key.I || k.Keycode == Key.B || k.Keycode == Key.K))
-            { ToggleTab(k.Keycode == Key.I ? 0 : k.Keycode == Key.B ? 1 : 2); GetViewport().SetInputAsHandled(); }
+            else if (onlineMode && roomShown && !chatFocused && !k.CtrlPressed && (Pressed("inventory", k) || Pressed("spells", k) || Pressed("skills", k)))
+            { ToggleTab(Pressed("inventory", k) ? 0 : Pressed("spells", k) ? 1 : 2); GetViewport().SetInputAsHandled(); }
             else if (k.Keycode == Key.F8 && onlineMode && roomShown) { flyMode = !flyMode; if (!flyMode && walker != null) UpdateWalkCamera(); }
-            else if (k.Keycode == Key.Tab && onlineMode && roomShown && !chatFocused) { CycleTarget(); GetViewport().SetInputAsHandled(); }
+            else if (Pressed("target", k) && onlineMode && roomShown && !chatFocused) { CycleTarget(); GetViewport().SetInputAsHandled(); }
             else if (k.Keycode == Key.Tab && !onlineMode)
             {
                 roomIdx = (roomIdx + (k.ShiftPressed ? rooms.Count - 1 : 1)) % rooms.Count;
@@ -1396,17 +1397,17 @@ public partial class Main : Node
 
         if (flyMode || walker == null || chatFocused) return;
 
-        bool run = Input.IsKeyPressed(Key.Shift) && (client.GetNumeric(Meridian59.Common.Enums.StatGroup.Condition, 3)?.ValueCurrent ?? 100) >= MinVigorToRun;   // official MIN_VIGOR: too tired = walk
+        bool run = Held("run") && (client.GetNumeric(Meridian59.Common.Enums.StatGroup.Condition, 3)?.ValueCurrent ?? 100) >= MinVigorToRun;   // official MIN_VIGOR: too tired = walk
         float fwd = 0, side = 0;
         if (!turnDone && TurnAt > 0 && Time.GetTicksMsec() / 1000.0 >= TurnAt) { turnDone = true; yaw = Mathf.DegToRad(TurnYaw); }   // test hook M59_TURNAT / M59_TURNYAW: change direction mid-walk
         bool autoGo = autoWalk > 0 && Time.GetTicksMsec() / 1000.0 >= AutoWalkStart;   // test hook M59_WALKSTART=<seconds since the client started>
-        if (Input.IsKeyPressed(Key.W) || Input.IsKeyPressed(Key.Up) || autoGo) fwd += 1;
+        if (Held("forward") || Input.IsKeyPressed(Key.Up) || autoGo) fwd += 1;
         if (autoGo) { autoWalk -= dt; if (autoWalk <= 0) GD.Print($"autowalk done at world ({walker.X:F0},{walker.Y:F0}) z={walker.Z:F0}"); }
-        if (Input.IsKeyPressed(Key.S) || Input.IsKeyPressed(Key.Down)) fwd -= 1;
-        if (Input.IsKeyPressed(Key.D)) side += 1;
-        if (Input.IsKeyPressed(Key.A)) side -= 1;
-        if (Input.IsKeyPressed(Key.Left)) yaw += 1.8f * dt;
-        if (Input.IsKeyPressed(Key.Right)) yaw -= 1.8f * dt;
+        if (Held("back") || Input.IsKeyPressed(Key.Down)) fwd -= 1;
+        if (Held("right")) side += 1;
+        if (Held("left")) side -= 1;
+        if (Held("turnleft")) yaw += 1.8f * dt;
+        if (Held("turnright")) yaw -= 1.8f * dt;
         if (resting || fxParalyzed) { fwd = 0; side = 0; }          // sitting: you can look around but not walk (press R to stand)
         selfMoving = false;
 
@@ -1567,6 +1568,7 @@ public partial class Main : Node
         BuildGroupUi();
         BuildTradeUi();
         BuildSocialUi();
+        BuildKeysUi();
         BuildSpellWindows();
         BuildAdminWindow();
         itemWin.AddCloseButton();
