@@ -95,6 +95,7 @@ public partial class Main : Node
             if (args[i] == "--room" && i + 1 < args.Length) startRoom = args[++i];
             else if (args[i] == "--adminwin") optAdminWin = true;
             else if (args[i] == "--third") optThird = true;
+            else if (args[i] == "--camdist" && i + 1 < args.Length) camDist = float.Parse(args[++i]);
             else if (args[i] == "--equiptwo" && i + 1 < args.Length) optEquipTwo = args[++i];
             else if (args[i] == "--lookall" && i + 1 < args.Length) optLookAll = args[++i];
             else if (args[i] == "--yaw" && i + 1 < args.Length) optYaw = float.Parse(args[++i]);
@@ -1260,6 +1261,36 @@ public partial class Main : Node
         sp.Position = RoomBuilder.P(p.x, p.y, floor);
     }
 
+    const float CameraWallGap = 0.6f;            // how far (Godot units, 4 = one square) the third-person camera stays short of a wall
+    Node3D triStaticFor, triDynFor; TriangleMesh triStatic, triDyn;
+    static TriangleMesh TrianglesOf(Node3D node) => node?.GetNodeOrNull<MeshInstance3D>("Geometry")?.Mesh?.GenerateTriangleMesh();
+
+    /// <summary>Distance from `from` along `dir` to the first room surface (walls, floors, ceilings) for a camera that is a little wider than a point; `max` if the way is free.</summary>
+    float CameraRayLimit(Vector3 from, Vector3 dir, float max)
+    {
+        if (current == null) return max;
+        if (!ReferenceEquals(triStaticFor, current)) { triStaticFor = current; triStatic = TrianglesOf(current); }
+        if (!ReferenceEquals(triDynFor, dynNode)) { triDynFor = dynNode; triDyn = TrianglesOf(dynNode); }
+        var side = dir.Cross(Vector3.Up); side = side.LengthSquared() < 1e-6f ? Vector3.Right : side.Normalized();
+        var up = side.Cross(dir).Normalized();
+        const float r = 0.45f;
+        float best = max;
+        foreach (var off in new[] { Vector3.Zero, side * r, -side * r, up * r, -up * r })
+        {
+            var target = from + dir * max + off;
+            var d = target - from; float len = d.Length(); d /= len;
+            foreach (var tri in new[] { triStatic, triDyn })
+            {
+                if (tri == null) continue;
+                var res = tri.IntersectRay(from, d);
+                if (res.Count == 0) continue;
+                float dist = ((Vector3)res["position"] - from).Length();
+                if (dist < len) best = Mathf.Min(best, dist * (max / len));
+            }
+        }
+        return best;
+    }
+
     void UpdateWalkCamera()
     {
         var eye = RoomBuilder.P(walker.X, walker.Y, walker.Z + Walker.EyeHeight);
@@ -1267,17 +1298,23 @@ public partial class Main : Node
         ApplyLook();
         if (!thirdPerson || currentRoom == null) return;
 
-        // third person: move the camera back along the view direction, but stop short of walls (probe with a Walker, which also respects room edges)
+        // third person: move the camera back along the view direction and stop short of anything in the way.
+        // 1) walls, floors and ceilings: rays through the room's real triangles (as meshes drawn, so low walls, ledges and ceilings count, not only what a walker cannot cross),
+        //    one down the middle and four round it so the camera is not left with its edge poking through a wall seen at a shallow angle
+        // 2) a Walker probe, which also knows the room's outer edge
         var back = cam.Basis.Z;                                   // the camera looks along -Z
+        float t = 1f;
+        float hit = CameraRayLimit(eye, back, camDist);
+        if (hit < camDist) t = Mathf.Min(t, Mathf.Max(hit - CameraWallGap, 0.2f) / camDist);
         float totalX = back.X / RoomBuilder.S * camDist, totalY = back.Z / RoomBuilder.S * camDist;   // world fineness for the full distance
-        float total = Mathf.Sqrt(totalX * totalX + totalY * totalY), t = 1f;
+        float total = Mathf.Sqrt(totalX * totalX + totalY * totalY);
         var pr = new Walker(currentRoom) { X = walker.X, Y = walker.Y, Z = walker.Z };
         if (total > 1f)
         {
             const int n = 10;
             for (int i = 0; i < n; i++) if (!pr.Move(totalX / n, totalY / n)) break;
             float got = Mathf.Sqrt((pr.X - walker.X) * (pr.X - walker.X) + (pr.Y - walker.Y) * (pr.Y - walker.Y));
-            t = Mathf.Clamp(got / total - 0.04f, 0.12f, 1f);
+            t = Mathf.Min(t, Mathf.Clamp(got / total - 0.04f, 0.12f, 1f));
         }
         var pos = eye + back * camDist * t;
         float floorZ = pr.FloorAt(walker.X + totalX * t, walker.Y + totalY * t);
