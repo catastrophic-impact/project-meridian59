@@ -227,7 +227,7 @@ public partial class Main
         var cancel = new Button { Text = "Cancel", SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; cancel.Pressed += () => HideTradeWindow("trade_items");
         buttons.AddChild(ok); buttons.AddChild(cancel); body.AddChild(buttons);
         ShowTradeWindow(w);
-        if (System.Environment.GetEnvironmentVariable("M59_TRADEAUTO") == "1" && rows.Count > 0 && title.StartsWith("Offer")) { rows[0].ck.ButtonPressed = true; GD.Print("[trade] auto: offering the first item"); ok.EmitSignal(BaseButton.SignalName.Pressed); }
+        if (System.Environment.GetEnvironmentVariable("M59_TRADEAUTO") == "1" && rows.Count > 0 && title.StartsWith("Offer")) { var want = System.Environment.GetEnvironmentVariable("M59_TRADEITEM"); var pickRow = want == null ? rows[0] : rows.FirstOrDefault(r => NameOf(r.it).Contains(want, StringComparison.OrdinalIgnoreCase)); if (pickRow.it == null) { GD.Print("[trade] auto: no item matches " + want); return; } pickRow.ck.ButtonPressed = true; GD.Print("[trade] auto: offering " + NameOf(pickRow.it)); ok.EmitSignal(BaseButton.SignalName.Pressed); }
     }
 
     // ---- the offer windows
@@ -267,6 +267,7 @@ public partial class Main
         tradeCounterItems = items.ToList(); tradeGotCounter = true;
         DrawSendOffer();
         AddChatLine("You have an answer to your offer: check the offer window, then accept or cancel.", "System");
+        if (System.Environment.GetEnvironmentVariable("M59_TRADEAUTO") == "1") { GD.Print("[trade] auto: accepting the answer"); client.TradeAccept(); CloseOfferWindows(); }
     }
 
     // someone offers us something
@@ -276,6 +277,7 @@ public partial class Main
         tradeOtherName = NameOf(from); tradeOfferItems = items.ToList(); tradeCounterItems = new List<ObjectBase>(); tradeRecvOpen = true; tradeCounterSent = false;
         DrawReceiveOffer();
         AddChatLine($"{tradeOtherName} makes you an offer.", "System");
+        if (System.Environment.GetEnvironmentVariable("M59_TRADEAUTO") == "1") { GD.Print("[trade] auto: countering with nothing"); client.TradeCounter(new ObjectID[0]); tradeCounterSent = true; DrawReceiveOffer(); }
     }
     void DrawReceiveOffer()
     {
@@ -321,7 +323,7 @@ public partial class Main
         if (tradeTestAt < 0 || now < tradeTestAt) return;
         tradeTestAt = System.Environment.GetEnvironmentVariable("M59_TRADELOOP") == "1" ? now + 12 : -1; GD.Print("[trade] test " + t);
         foreach (var o in client.Objects) if (objPos.TryGetValue(o.ID, out var op)) GD.Print($"[trade]   {NameOf(o)} #{o.ID} buyable={o.Flags.IsBuyable} offerable={o.Flags.IsOfferable} dist={Mathf.Sqrt((op.x - walker.X) * (op.x - walker.X) + (op.y - walker.Y) * (op.y - walker.Y)) / 1024f:F1} squares");
-        var near = NearbyObjects(o => t == "buy" || t == "withdraw" || t == "look" ? o.Flags.IsBuyable : o.Flags.IsOfferable);
+        var near = NearbyObjects(o => t == "buy" || t == "withdraw" || t == "look" ? o.Flags.IsBuyable : o.Flags.IsOfferable && (o.Flags.IsPlayer ? o.ID != client.PlayerId : System.Environment.GetEnvironmentVariable("M59_TRADEPLAYER") != "1"));
         if (near.Count == 0) { AddChatLine("There is nobody close enough.", "System"); return; }
         switch (t) { case "buy": client.TradeRequestBuy(near[0].ID); break; case "offer": TradeOfferTo(near[0], false); break; case "withdraw": client.TradeRequestWithdraw(near[0].ID); break; case "look": client.LookAt(near[0].ID); break; }
     }

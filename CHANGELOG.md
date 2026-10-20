@@ -4,6 +4,9 @@ Newest first. Each push to GitHub gets an entry.
 
 ## Unreleased
 
+### Testing
+- Shop buying, selling to a merchant and player-to-player offers were tested end to end and work. New test hooks: `M59_TRADEITEM`, `M59_TRADEPLAYER`, and `M59_TRADEAUTO` now also answers offers.
+
 ### Weather
 - **Rain** comes in five strengths, from a light sprinkle to a downpour, and sometimes a moderate or heavy shower is a **thunderstorm** with rare lightning flashes and rolling thunder (strikes about every 30 to 120 seconds, a little more often in a downpour).
 - **Overcast**: when it rains outdoors the sky turns grey and dark and the light dims, more the harder it rains. Indoors you stay dry and it fades smoothly as you walk through a door.
