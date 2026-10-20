@@ -10,11 +10,15 @@ Newest first. Each push to GitHub gets an entry.
 - **Who**: the list of players who are online, kept up to date as people come and go. Double-click a name (or "Send mail") to write to them.
 - **Guild**: your guild's name, your rank and its members, with Invite target, Exile, Leave, Hand over and Disband (greyed out when your rank may not do it). When the server offers to found a guild you can pick the name and the five rank titles.
 
+### Mob aggro
+- **Fixed: aggressive monsters ignored players who were close but not right next to them** (seen with the mummies in the Mausoleum). In proximity mode a monster now always goes for a visible player inside its aggro radius with a line of sight, however weak or strong the player is; before, the old hatred sum was often zero for easy monsters beyond a square or two. Tested with a mummy five squares away: it targeted the player and chased.
+- Lines of sight (aggro, ranged attacks, spells) always use the coarse grid again; the "accurate walls" setting now only decides where creatures walk.
+
 ### Windows
 - **No title bars any more**: drag any window by any empty spot (borders, labels, empty areas). Only the character window keeps its name on top. A small x closes the Look window.
 - **Stats is now a tab** of the bottom-right window next to Inventory, Spells and Skills (the old Stats window is gone). Its lines wrap, so nothing is cut off at the edge.
 - **Trade windows** (buy list, offers) open to the right of the Look window instead of on top of it, and their Buy / Cancel / Accept buttons stay in view while the item list scrolls.
-- **New default layout** (used until you move windows, or after Interface > Reset window layout): character top left with its target to the right and the group below it, map top right, chat bottom left, hotbar bottom centre, the pack (inventory, spells, skills, stats) bottom right. The Look window and every other window open in the middle of the screen.
+- **New default layout** (windows sit flush against the screen edges, the top bar and each other; used until you move windows, or after Interface > Reset window layout): character top left with its target to the right and the group below it, map top right, chat bottom left, hotbar bottom centre, the pack (inventory, spells, skills, stats) bottom right. The Look window and every other window open in the middle of the screen.
 
 ### Growth bar
 - A thin purple **growth bar** under the vigor bar in your character window shows the hidden counter behind getting tougher: the chance (shown in the tooltip and in the Stats window) that your next kill of a creature tougher than you adds a point of maximum health. Killing weaker creatures sets it back. It refreshes every few seconds (our server only).

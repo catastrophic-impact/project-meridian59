@@ -231,13 +231,13 @@ public class HudManager
     /// every other window opens in the middle of the screen.</summary>
     Vector2 DefaultPosition(string id, Vector2 size, Vector2 ui)
     {
-        const float m = 6;
+        const float m = 0;          // windows sit flush against the screen edges, the top bar and each other
         float top = TopInset + m;
         switch (id)
         {
             case "status": return new Vector2(m, top);
-            case "target": return new Vector2(m + 300 + m, top);
-            case "group": return new Vector2(m, top + 126 + m);
+            case "target": return new Vector2(m + 300, top);
+            case "group": return new Vector2(m, top + 126);
             case "map": return new Vector2(ui.X - size.X - m, top);
             case "chat": return new Vector2(m, ui.Y - size.Y - m);
             case "hotbar": return new Vector2((ui.X - size.X) / 2, ui.Y - size.Y - m);

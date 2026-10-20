@@ -987,6 +987,18 @@ messages:
          iHatred = iHatred + piHyperAggressive_factor;
       }
 
+      % Custom proximity aggro: an aggressive monster that has a visible player inside its aggro radius (and in sight, checked above) goes for them.
+      % Without this the vanilla sum (distance bonus that is zero beyond a square or two for easy monsters, plus a bonus for the player's max health) can be
+      % zero or less, and the monster would ignore a nearby player.
+      if Send(Send(SYS,@GetSettings),@GetMobAggroMode) = 1
+         AND (behavior & AI_FIGHT_AGGRESSIVE)
+         AND event <> TS_FIGHT_ME_VICTIM
+         AND NOT IsClass(what,&Monster)
+         AND NOT Send(what,@IsInvisible)
+      {
+         iHatred = Bound(iHatred,5,$);
+      }
+
       return iHatred;
    }
 

@@ -43,6 +43,7 @@ Server side (`server/`): `M59_NO_AUTOSTART=1` stops the admin TUI from starting 
 - `send object <user> TeleportTo RID int <rid>` (rooms in `server/rooms.json`)
 - `send object 0 SetWeather iZone int 1 iIntensity int 4 bStorm int 1`
 - `send object <room> ToggleCenterLight` (Brax arena, RID 579: texture change), `AnimateWall` (doors, RID 708)
+- mob aggro: `send object 3 GetHatred mob object <mob> what object <user> behavior int 16416 event int 1` (brain object 3; > 0 means it goes for the player; 16416 = aggressive), `send object <room> TestWalk iRowA int R iColA int C iRowB int R iColB int C` (1 coarse grid allows the step, 2 accurate grid, 3 both), `send object <room> SomethingMoved what object <user> new_row int R new_col int C fine_row int 32 fine_col int 32 cause int 0 speed int 12` (acts like the player moved: wakes mobs)
 - `send object <user> SendCreateGuild`, `send object <user> SendWeapon`, `send object <user> SendStatsDetail`
 - fake effects: `set object <user> piMightMod int 10` (and the other `pi<Stat>Mod`), `set object <user> piFlags3 int 20` (universal bonus %), `send object <user> AddResistance what int -2 value int 30` (negative type = spell type, here fire)
 - give things: `create object Money number int 5000` then `send object <user> NewHold what object <id>`

@@ -2262,10 +2262,29 @@ messages:
       propagate;
    }
 
+   TestWalk(iRowA = 0, iColA = 0, iRowB = 0, iColB = 0)
+   "Admin supported.  Diagnostics: 1 = the coarse grid allows the step, 2 = the accurate grid allows it, 3 = both."
+   {
+      local i;
+
+      i = 0;
+      if CanMoveInRoom(prmRoom,iRowA,iColA,iRowB,iColB)
+      {
+         i = i + 1;
+      }
+
+      if CanMoveInRoomFine(prmRoom,iRowA,iColA,iRowB,iColB)
+      {
+         i = i + 2;
+      }
+
+      return i;
+   }
+
    LineOfSight(obj1 = $, obj2 = $)
    "Returns TRUE if there is a line of sight between obj1 and obj2"
    {
-      local r, c, r2, c2, iRow, iCol, iRSign, iCSign, iLOS;
+      local r, c, r2, c2, iRow, iCol, iRSign, iCSign;
 
       if Send(obj1,@GetOwner) <> Send(obj2,@GetOwner)
       {
@@ -2327,24 +2346,11 @@ messages:
          %  location is blocked as well.  This assumption is violated
          %  by, for example, fences and altitude changes in the floor.
 
-         iLOS = Send(Send(SYS, @GetSettings), @GetLOS);
-
-         % Making the assumption that obj1 is the "doer" in this case.
-         if iLOS = LOS_NEW_BOTH
-            OR (iLOS = LOS_NEW_MONSTER AND IsClass(obj1,&Monster))
-            OR (iLOS = LOS_NEW_PLAYER AND IsClass(obj1,&Player))
+         % Line of sight always uses the coarse walk grid.  The accurate grid (setting piLOS) is for where creatures can walk;
+         % used for sight it blocked views down ordinary corridors, so monsters never noticed players (aggro needs a line of sight).
+         if NOT CanMoveInRoom(prmRoom,r,c,r2,c2)
          {
-            if NOT CanMoveInRoomFine(prmRoom,r,c,r2,c2)
-            {
-               return FALSE;
-            }
-         }
-         else
-         {
-            if NOT CanMoveInRoom(prmRoom,r,c,r2,c2)
-            {
-               return FALSE;
-            }
+            return FALSE;
          }
 
          r = r2;
