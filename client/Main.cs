@@ -2200,8 +2200,14 @@ public partial class Main : Node
         client.LookAt(s.ItemId);
     }
 
-    /// <summary>The composed face of anything with a head overlay (players, companions, playerbots), else null.</summary>
-    Texture2D FaceOf(RoomObject ro) => ro != null && ro.SubOverlays.Exists(so => so.HotSpot == 1 && so.ResourceID != 0) ? FaceComposer.Compose(ro, rid => ResolveFile(client.Resolve(rid))) : null;
+    /// <summary>The whole character of anything with a head overlay (players, companions, playerbots) as in the original info window, standing and facing us; null if it has no body parts.</summary>
+    Texture2D FaceOf(RoomObject ro)
+    {
+        if (ro == null || !ro.SubOverlays.Exists(so => so.HotSpot == 1 && so.ResourceID != 0)) return null;
+        try { var res = AvatarComposer.Compose(ro, BodyAngle, rid => ResolveFile(client.Resolve(rid))); if (res?.Texture != null) return res.Texture; } catch { }
+        return FaceComposer.Compose(ro, rid => ResolveFile(client.Resolve(rid)));
+    }
+    ushort BodyAngle = ushort.TryParse(System.Environment.GetEnvironmentVariable("M59_BODYANGLE"), out var ba) ? ba : (ushort)2048;   // relative angle 0 = seen from behind, 2048 = facing the viewer
 
     void OnLookReceived(uint id, string name, string desc, string inscription, uint overlayRid, ushort group)
     {

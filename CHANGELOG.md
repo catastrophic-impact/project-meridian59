@@ -8,7 +8,7 @@ Newest first. Each push to GitHub gets an entry.
 - Fighter companion matches a player who was just handed a bow: arrows 1-5 (a little more per level of its master's ECL), one shot per second. It used to hit for ~8 every 1.5 s.
 - Companions (not playerbots): never limited by the reagent rule, always regenerate like 200 vigor, fighters have endless arrows and pick the arrow the target is weakest against (silver / fire / nerudite / plain).
 - Group window: the targeted member is framed, dead / away members are dimmed and labelled, no "In a group of N" line.
-- Target and Look windows show the face of companions and bots (like players) instead of only the torso.
+- Target and Look windows show the whole character (as the original info window) for players, companions and bots, instead of only the torso.
 
 ### Mail, Who and Guild windows
 - New top bar buttons: **Mail** (the original mailbox icon), **Who** and **Guild**.
