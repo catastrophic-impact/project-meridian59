@@ -15,7 +15,7 @@ public partial class Main
 
     void OnSectorMoved(byte type, ushort id, ushort height, byte speed)
     {
-        if (currentRoom == null || !roomShown) return;
+        if (currentRoom == null || !roomShown) { pendingLifts.Add((type, id, height, speed)); return; }
         bool ceil = type == 5, grew = false;
         for (int i = 0; i < currentRoom.Sectors.Count; i++)
         {

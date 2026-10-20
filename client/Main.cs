@@ -486,7 +486,7 @@ public partial class Main : Node
         client.SunChanged += (i, a) => { RoomLight.SetSun(i, a); if (AnimLog) GD.Print($"[light] sun intensity {i} angle {a}"); };
         client.SoundRequested += (n, o, f, r, c, rad, mv) => { if (!optMute) audio.PlaySound(n, o, f, r, c, rad, mv); };
         client.MusicRequested += n => { if (!optMute) audio.PlayMusic(n); };
-        client.RoomChanging += () => { audio.RoomChanged(); ClearProjectiles(); ClearBgOverlays(); resyncRest = true; };
+        client.RoomChanging += () => { ClearPendingRoomChanges(); audio.RoomChanged(); ClearProjectiles(); ClearBgOverlays(); resyncRest = true; };
         client.ProjectileFired += OnProjectile;
         client.BackgroundChanged += SetBackground;
         client.BackgroundOverlayChanged += OnBackgroundOverlay;
@@ -785,6 +785,7 @@ public partial class Main : Node
         int shown = objSprites.Count;
 
         roomShown = true;
+        ApplyPendingRoomChanges();
         loginPanel.Visible = false; HideCharCreate();
         GetViewport().GuiReleaseFocus();
         if (chatPanel == null) BuildHud();
