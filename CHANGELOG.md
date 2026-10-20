@@ -4,6 +4,8 @@ Newest first. Each push to GitHub gets an entry.
 
 ## Unreleased
 
+- Hotbar window no longer taller than its slots (slots look square again).
+
 ### Mail, Who and Guild windows
 - New top bar buttons: **Mail** (the original mailbox icon), **Who** and **Guild**.
 - **Mail**: read, reply, delete and write letters. Like the original client the letters are handed over by the server and kept on your side (`userdata/mail_<character>.json`). New mail is fetched when you log in and when the server says you have some, unread letters are marked and the Mail button turns yellow.

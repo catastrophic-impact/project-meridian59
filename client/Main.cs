@@ -1579,8 +1579,9 @@ public partial class Main : Node
             b.Dropped = (_, d) => AssignHotbar(slot, d);
             hotSlots[i] = b; row.AddChild(b);
         }
-        var win = hudMgr.Add("hotbar", "Hotbar", row, new Vector2(0.28f, 0.10f), new Vector2(540, 88));
+        var win = hudMgr.Add("hotbar", "Hotbar", row, new Vector2(0.28f, 0.10f), new Vector2(540, 64));
         win.Resizable = false;
+        if (win.Size.Y > 64) { win.Position += new Vector2(0, win.Size.Y - 64); win.Size = new Vector2(win.Size.X, 64); }   // older saved layouts hold the taller, non-square-looking bar
         LoadHotbar();
         RefreshHotbar();
     }
