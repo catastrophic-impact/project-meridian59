@@ -111,8 +111,7 @@ public partial class Main
         if (Row(15) is var (wt, wm)) Line("Weight carried", $"{wt} / {wm}");
 
         Section("Offense");
-        var wi = weaponId != 0 ? client.Inventory.Find(x => x.ID == weaponId) : null;
-        Line("Fighting with", wi != null ? (client.Resolve(wi.NameRID) ?? "a weapon") : "bare hands");
+        Line("Fighting with", AttackName() ?? "bare hands");
         if (Row(21) is var (st, _)) Line("Weapon skill", st.ToString(), null, "How well you swing this kind of weapon (the stroke skill).");
         if (Row(22) is var (pf, _)) Line("Proficiency", pf.ToString(), null, "How practised you are with this weapon.");
         if (Row(20) is var (off, oe)) Line("Offense rating", oe != 0 ? $"{off}  ({Signed(oe)} from gear and effects)" : off.ToString(), oe > 0 ? good : oe < 0 ? bad : null, "Skill, proficiency, aim and health, plus weapon, effects and the universal bonus. The higher against the target's defense, the more you hit.");

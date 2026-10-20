@@ -356,6 +356,7 @@ public partial class Main : Node
         client.SectorMoved += OnSectorMoved;
         client.WeaponReceived += OnWeaponReceived;
         client.EquipmentChanged += AskWeaponSoon;
+        client.BuffsChanged += () => { if (weaponAskAt == 0) AskWeaponSoon(); };      // a touch spell starting or ending changes what we fight with
         client.TextureChanged += OnTextureChanged;
         client.WallAnimated += OnWallAnimated;
         client.LightingChanged += (a, v) => { RoomLight.Set(a, v); if (AnimLog) GD.Print($"[light] ambient {a} viewer {v}"); };
@@ -1623,17 +1624,21 @@ public partial class Main : Node
 
     // the Attack icon shows what we fight with: the wielded weapon (asked from our own server whenever the equipment changes), the punch icon for bare hands
     uint weaponId; byte weaponKind; double weaponAskAt; Texture2D fistIcon;
+    /// <summary>What we fight with as an object we know: the wielded weapon (an inventory item) or the touch spell that is on (one of our spells).</summary>
+    ObjectBase AttackSource() => weaponId == 0 ? null : weaponKind == 3 ? client.Spells.Find(x => x.ID == weaponId) : client.Inventory.Find(x => x.ID == weaponId);
     Texture2D AttackIcon()
     {
-        var w = weaponId != 0 ? client.Inventory.Find(x => x.ID == weaponId) : null;
+        var w = AttackSource();
         if (w != null) { var t = IconFor(w); if (t != null) return t; }
+        if (w != null) return null;        // holding something we have no picture of: the slot shows its name instead of a fist
         if (fistIcon == null) { var path = ResolveFile("punchico.bgf"); fistIcon = path != null ? sprites.Get(path, 1, 0, 0)?.Texture : null; }
         return fistIcon;
     }
+    string AttackName() { var w = AttackSource(); return w != null ? (client.Resolve(w.NameRID) ?? (weaponKind == 3 ? "a touch spell" : "your weapon")) : null; }
     string AttackTip()
     {
-        var w = weaponId != 0 ? client.Inventory.Find(x => x.ID == weaponId) : null;
-        string with = w != null ? (client.Resolve(w.NameRID) ?? "your weapon") : "your fists";
+        string name = AttackName();
+        string with = name == null ? "your fists" : weaponKind == 3 ? name : name;
         return $"Attack ({KeyName(keymap["attack"])}) with {with}: hits your target, or the nearest thing in front of you.";
     }
     void OnWeaponReceived(uint id, byte kind) { if (AnimLog) GD.Print($"[weapon] id {id} kind {kind}"); weaponId = id; weaponKind = kind; RefreshHotbar(); RebuildSkills(); }
@@ -1653,7 +1658,7 @@ public partial class Main : Node
                 ObjectBase src = h.Kind == "spell" ? client.Spells.Find(x => x.ID == h.Id)
                                : h.Kind == "skill" ? client.Skills.Find(x => x.ID == h.Id)
                                : h.Kind == "item" ? client.Inventory.Find(x => x.ID == h.Id) : null;
-                if (h.Kind == "attack") { sl.Icon = AttackIcon(); if (sl.Icon == null) sl.Label = "Attack"; sl.TooltipText = AttackTip(); }
+                if (h.Kind == "attack") { sl.Icon = AttackIcon(); if (sl.Icon == null) sl.Label = AttackName() ?? "Attack"; sl.TooltipText = AttackTip(); }
                 else if (h.Kind.StartsWith("comp_")) { sl.Label = CommandLabel(h.Kind); sl.TooltipText = CommandTip(h.Kind); }
                 else if (src != null) { sl.Icon = IconFor(src); sl.TooltipText = client.Resolve(src.NameRID) ?? h.Name; if (sl.Icon == null) sl.Label = h.Name; }
                 else sl.Label = h.Name;       // not (yet) known, e.g. before the lists arrive

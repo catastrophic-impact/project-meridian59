@@ -27,7 +27,7 @@ Newest first. Each push to GitHub gets an entry.
 - While you cast a spell with bare hands, your hand glows as in the original (the server sends a glow overlay that sits on the hand's hotspot).
 
 ### Attack icon
-- The Attack button (hotbar and Skills list) now shows what you fight with: the weapon you wield, or the punch icon for bare hands, and its tooltip names it. The server tells the client which weapon is in use whenever you change equipment (new server message, our server only).
+- The Attack button (hotbar and Skills list) now shows what you fight with: the weapon you wield, the **touch spell** you have on when your hands are empty (Holy Touch, Flame Touch, ...), or the punch icon for bare hands, and its tooltip names it. Fixed: while you were walking or fighting the server could drop the client's request (its spam check counts movement packets), so the button kept showing a fist after equipping a weapon; the weapon, details and target-health requests are now always answered. The server tells the client which weapon is in use whenever you change equipment (new server message, our server only).
 
 ### Cleanup
 - The client is quiet by default: the per-stat and unhandled-message lines are only printed with `M59_TRACE=1`.

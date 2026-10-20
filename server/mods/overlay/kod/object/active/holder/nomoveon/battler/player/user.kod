@@ -1487,7 +1487,11 @@ messages:
       % custom extension commands (groups, companions, target health)
       if iClient_cmd = UC_EXT_GAME
       {
+         % Walking sends many packets a second, which trips the spam check; the read-only requests of our client (weapon, details, target health) must still be answered.
          if bSpam
+            AND Nth(client_msg,2) <> EXT_CMD_WEAPON
+            AND Nth(client_msg,2) <> EXT_CMD_STATS
+            AND Nth(client_msg,2) <> EXT_CMD_TARGET_HEALTH
          {
             return;
          }
@@ -5009,7 +5013,7 @@ messages:
    }
 
    SendWeapon()
-   "Custom: which item we fight with (0 = bare hands, or a touch spell), and 1 melee / 2 ranged; our client shows it as the Attack icon."
+   "Custom: what we fight with: its object id and 0 bare hands / 1 melee weapon / 2 ranged weapon / 3 touch spell; our client shows it as the Attack icon."
    {
       local oWeapon, iId, iKind;
 
@@ -5021,13 +5025,17 @@ messages:
       oWeapon = Send(self,@GetWeapon);
       iId = 0;
       iKind = 0;
-      if oWeapon <> $ AND IsClass(oWeapon,&Item)
+      if oWeapon <> $
       {
          iId = oWeapon;
-         iKind = 1;
-         if IsClass(oWeapon,&RangedWeapon)
+         iKind = 3;                          % no weapon in hand, a touch spell is on: the spell is what we fight with
+         if IsClass(oWeapon,&Item)
          {
-            iKind = 2;
+            iKind = 1;
+            if IsClass(oWeapon,&RangedWeapon)
+            {
+               iKind = 2;
+            }
          }
       }
 
