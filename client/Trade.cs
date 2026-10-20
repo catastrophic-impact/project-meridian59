@@ -20,21 +20,73 @@ public partial class Main
 
     void BuildTradeUi()
     {
-        var box = new VBoxContainer(); box.AddThemeConstantOverride("separation", 6);
-        box.AddChild(new Label { Text = "Stand close to a shop keeper, banker or another player.", Modulate = new Color(1, 1, 1, 0.7f), AutowrapMode = TextServer.AutowrapMode.WordSmart });
-        void add(string text, string tip, Action act) { var b = new Button { Text = text, TooltipText = tip, ClipText = true }; b.Pressed += act; box.AddChild(b); }
-        add("Buy", "Buy from a shop keeper close by", TradeBuy);
-        add("Offer / sell", "Offer items to a player or a shop keeper close by", () => TradeOffer(false));
-        add("Deposit", "Give items to a banker close by", () => TradeOffer(true));
-        add("Withdraw", "Take items out of your bank account", TradeWithdraw);
-        hudMgr.Add("trade", "Trade", box, new Vector2(0.20f, 0.14f), new Vector2(260, 220), resizable: false, visibleByDefault: false).Visible = false;
-
         client.BuyListReceived += OnBuyList;
         client.OfferReceived += OnOfferReceived;
         client.OfferedReceived += OnOffered;
         client.CounterOfferReceived += OnCounterOffer;
         client.CounterOfferedReceived += OnCounterOffered;
         client.OfferCanceledReceived += OnOfferCanceled;
+    }
+
+    // ---- the trade buttons of the Look window (right-click an NPC or a player; like the original's action menu)
+    void BuildLookActions(uint id, string text = "")
+    {
+        bool bank = text.Contains("bank", StringComparison.OrdinalIgnoreCase) || text.Contains("vault", StringComparison.OrdinalIgnoreCase);   // only bankers get Deposit / Withdraw
+        if (lookActions == null) return;
+        foreach (var c in lookActions.GetChildren()) { lookActions.RemoveChild(c); c.QueueFree(); }
+        var o = client.Objects.Find(x => x.ID == id);
+        if (o == null || o.ID == client.PlayerId) { lookActions.Visible = false; return; }
+        void add(string text, string tip, Action act)
+        {
+            var b = new Button { Text = text, TooltipText = tip };
+            b.AddThemeFontSizeOverride("font_size", 13);
+            b.CustomMinimumSize = new Vector2(70, 26);
+            b.AddThemeStyleboxOverride("normal", ActionStyle(0.20f, 0.28f, 0.45f));
+            b.AddThemeStyleboxOverride("hover", ActionStyle(0.28f, 0.38f, 0.60f));
+            b.AddThemeStyleboxOverride("pressed", ActionStyle(0.16f, 0.22f, 0.36f));
+            b.Pressed += () => { if (!TradeClose(o)) return; act(); };
+            lookActions.AddChild(b);
+        }
+        bool player = o.Flags.IsPlayer;
+        if (o.Flags.IsBuyable && !player)
+        {
+            add("Buy", "See what this merchant sells", () => client.TradeRequestBuy(o.ID));
+            if (bank) add("Withdraw", "Take things out of your bank account here", () => client.TradeRequestWithdraw(o.ID));
+        }
+        if (o.Flags.IsOfferable)
+        {
+            if (player) add("Offer items", "Offer items to this player", () => TradeOfferTo(o, false));
+            else
+            {
+                add("Sell / offer", "Offer items to this merchant", () => TradeOfferTo(o, false));
+                if (bank) add("Deposit", "Give items to this banker", () => TradeOfferTo(o, true));
+            }
+        }
+        lookActions.Visible = lookActions.GetChildCount() > 0;
+    }
+
+    static StyleBoxFlat ActionStyle(float r, float g, float b) => new StyleBoxFlat { BgColor = new Color(r, g, b, 0.95f), BorderColor = new Color(0.55f, 0.6f, 0.8f), BorderWidthLeft = 1, BorderWidthRight = 1, BorderWidthTop = 1, BorderWidthBottom = 1, ContentMarginLeft = 8, ContentMarginRight = 8, CornerRadiusTopLeft = 3, CornerRadiusTopRight = 3, CornerRadiusBottomLeft = 3, CornerRadiusBottomRight = 3 };
+
+    /// <summary>The official client only trades with things within 5 squares.</summary>
+    bool TradeClose(RoomObject o)
+    {
+        if (walker == null || !objPos.TryGetValue(o.ID, out var p)) return false;
+        float d = Mathf.Sqrt((p.x - walker.X) * (p.x - walker.X) + (p.y - walker.Y) * (p.y - walker.Y));
+        if (d <= TradeDistance) return true;
+        AddChatLine($"You are too far away from {client.Resolve(o.NameRID) ?? "it"}.", "System");
+        return false;
+    }
+
+    void TradeOfferTo(RoomObject o, bool deposit)
+    {
+        if (tradeSendOpen || tradeRecvOpen) { var open = hudMgr.Get(tradeSendOpen ? "trade_send" : "trade_recv"); if (open != null) ShowTradeWindow(open); return; }
+        if (client.Inventory.Count == 0) { AddChatLine("You have nothing to offer.", "System"); return; }
+        tradeOtherName = client.Resolve(o.NameRID) ?? "?";
+        PickItems(deposit ? "Deposit which items?" : "Offer which items?", items =>
+        {
+            if (items.Length == 0) return;
+            if (deposit) client.TradeDeposit(o.ID, items); else client.TradeOffer(o.ID, items);
+        });
     }
 
     // ---- helpers
@@ -126,10 +178,7 @@ public partial class Main
 
     static ObjectID Pick(ObjectBase it, SpinBox amount) => new ObjectID(it.ID, it.IsStackable ? (uint)(amount?.Value ?? it.Count) : 0);
 
-    // ---- buy / withdraw
-    void TradeBuy() => PickNearby("Buy from", "There is nobody close enough to buy from.", o => o.Flags.IsBuyable, o => client.TradeRequestBuy(o.ID));
-    void TradeWithdraw() => PickNearby("Withdraw from", "There is no banker close enough.", o => o.Flags.IsBuyable, o => client.TradeRequestWithdraw(o.ID));
-
+    // ---- buy / withdraw lists
     void OnBuyList(ObjectBase seller, TradeOfferObject[] items, bool withdrawal)
     {
         var w = TradeWindow("trade_buy", (withdrawal ? "Withdraw from " : "Buy from ") + NameOf(seller), new Vector2(0.30f, 0.15f), new Vector2(430, 380), out var body);
@@ -160,22 +209,6 @@ public partial class Main
         buttons.AddChild(ok); buttons.AddChild(cancel); body.AddChild(buttons);
         ShowTradeWindow(w);
         if (System.Environment.GetEnvironmentVariable("M59_TRADEAUTO") == "1" && rows.Count > 0) { rows[0].ck.ButtonPressed = true; GD.Print("[trade] auto: buying the first item"); ok.EmitSignal(BaseButton.SignalName.Pressed); }
-    }
-
-    // ---- offer / deposit: pick the recipient, then the items
-    void TradeOffer(bool deposit)
-    {
-        if (tradeSendOpen || tradeRecvOpen) { var open = hudMgr.Get(tradeSendOpen ? "trade_send" : "trade_recv"); if (open != null) ShowTradeWindow(open); return; }
-        if (client.Inventory.Count == 0) { AddChatLine("You have nothing to offer.", "System"); return; }
-        PickNearby(deposit ? "Deposit with" : "Offer to", "There is nobody close enough.", o => o.Flags.IsOfferable, o =>
-        {
-            tradeOtherName = client.Resolve(o.NameRID) ?? "?";
-            PickItems(deposit ? "Deposit which items?" : "Offer which items?", items =>
-            {
-                if (items.Length == 0) return;
-                if (deposit) client.TradeDeposit(o.ID, items); else client.TradeOffer(o.ID, items);
-            });
-        });
     }
 
     /// <summary>Inventory item picker (check boxes + amounts for stacks).</summary>
@@ -278,7 +311,7 @@ public partial class Main
     }
 
     double tradeTestAt; object tradeTestRoom;
-    /// <summary>Test hook: M59_TRADETEST=buy|offer|withdraw opens that trade flow a few seconds after entering a room.</summary>
+    /// <summary>Test hook: M59_TRADETEST=buy|offer|withdraw starts that trade with the nearest suitable object a few seconds after entering a room.</summary>
     void TradeTestTick()
     {
         var t = System.Environment.GetEnvironmentVariable("M59_TRADETEST");
@@ -288,6 +321,8 @@ public partial class Main
         if (tradeTestAt < 0 || now < tradeTestAt) return;
         tradeTestAt = System.Environment.GetEnvironmentVariable("M59_TRADELOOP") == "1" ? now + 12 : -1; GD.Print("[trade] test " + t);
         foreach (var o in client.Objects) if (objPos.TryGetValue(o.ID, out var op)) GD.Print($"[trade]   {NameOf(o)} #{o.ID} buyable={o.Flags.IsBuyable} offerable={o.Flags.IsOfferable} dist={Mathf.Sqrt((op.x - walker.X) * (op.x - walker.X) + (op.y - walker.Y) * (op.y - walker.Y)) / 1024f:F1} squares");
-        switch (t) { case "buy": TradeBuy(); break; case "offer": TradeOffer(false); break; case "withdraw": TradeWithdraw(); break; }
+        var near = NearbyObjects(o => t == "buy" || t == "withdraw" || t == "look" ? o.Flags.IsBuyable : o.Flags.IsOfferable);
+        if (near.Count == 0) { AddChatLine("There is nobody close enough.", "System"); return; }
+        switch (t) { case "buy": client.TradeRequestBuy(near[0].ID); break; case "offer": TradeOfferTo(near[0], false); break; case "withdraw": client.TradeRequestWithdraw(near[0].ID); break; case "look": client.LookAt(near[0].ID); break; }
     }
 }

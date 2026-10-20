@@ -45,7 +45,7 @@ public partial class Main : Node
 
     // chat
     MiniMap miniMap;
-    HudManager hudMgr; RichTextLabel chatLog; LineEdit chatInput; Control chatPanel; Label statusLabel; double statusAt; TextureRect facePic; Label faceMissing; Label mapRoomLabel; ProgressBar barHealth, barMana, barVigor; GridContainer invGrid; InvSlot selectedSlot; uint selectedItemId; Label invInfo; HudWindow itemWin, statusWin; TextureRect itemPic; Label itemName, itemDesc; uint pendingInvLook; Label txtHealth, txtMana, txtVigor; bool chatFocused; double sayAt = -1; int sayStage = 0; int sayFrame;
+    HudManager hudMgr; RichTextLabel chatLog; LineEdit chatInput; Control chatPanel; Label statusLabel; double statusAt; TextureRect facePic; Label faceMissing; Label mapRoomLabel; ProgressBar barHealth, barMana, barVigor; GridContainer invGrid; InvSlot selectedSlot; uint selectedItemId; Label invInfo; HudWindow itemWin, statusWin; TextureRect itemPic; Label itemName; RichTextLabel itemDesc; HBoxContainer lookActions; uint pendingInvLook; Label txtHealth, txtMana, txtVigor; bool chatFocused; double sayAt = -1; int sayStage = 0; int sayFrame;
 
     // walking
     Walker walker;
@@ -1515,11 +1515,13 @@ public partial class Main : Node
         var rvbox = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
         rvbox.AddThemeConstantOverride("separation", 4);
         itemName = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, CustomMinimumSize = new Vector2(150, 0) };
-        itemName.AddThemeFontSizeOverride("font_size", 20);
-        itemDesc = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, CustomMinimumSize = new Vector2(150, 0) };
-        var descScroll = new ScrollContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill, HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled };
-        descScroll.AddChild(itemDesc);
-        rvbox.AddChild(itemName); rvbox.AddChild(descScroll);
+        itemName.AddThemeFontSizeOverride("font_size", 16);
+        // the description scrolls (long NPC / item texts), in a smaller font
+        itemDesc = new RichTextLabel { ScrollActive = true, FitContent = false, SelectionEnabled = true, ContextMenuEnabled = true, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, SizeFlagsVertical = Control.SizeFlags.ExpandFill, CustomMinimumSize = new Vector2(150, 70) };
+        itemDesc.AddThemeFontSizeOverride("normal_font_size", 13);
+        // buttons for what can be done with the thing looked at (buy, sell, offer ...)
+        lookActions = new HBoxContainer { Visible = false }; lookActions.AddThemeConstantOverride("separation", 6);
+        rvbox.AddChild(itemName); rvbox.AddChild(itemDesc); rvbox.AddChild(lookActions);
         hrow.AddChild(itemPic); hrow.AddChild(rvbox);
         itemWin = hudMgr.Add("item", "Look", hrow, new Vector2(0.34f, 0.12f), new Vector2(430, 230), visibleByDefault: false);
         BuildHotbar();
@@ -2183,6 +2185,7 @@ public partial class Main : Node
         itemPic.Texture = s.Icon;
         itemName.Text = s.ItemName;
         itemDesc.Text = "...";
+        if (lookActions != null) lookActions.Visible = false;   // inventory items have no trade buttons
         itemWin.Visible = true;
         itemWin.GetParent().MoveChild(itemWin, -1);
         client.LookAt(s.ItemId);
@@ -2206,6 +2209,8 @@ public partial class Main : Node
         string text = desc ?? "";
         if (!string.IsNullOrEmpty(inscription)) text += "\n\n" + inscription;
         itemDesc.Text = text;
+        itemDesc.ScrollToLine(0);
+        BuildLookActions(id, (name ?? "") + " " + text);
         itemWin.Visible = true;
         itemWin.GetParent().MoveChild(itemWin, -1);
     }
