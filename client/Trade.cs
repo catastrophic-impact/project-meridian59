@@ -90,25 +90,43 @@ public partial class Main
     }
 
     // ---- helpers
+    VBoxContainer tradeFooter;      // the buttons row of the trade window just built: outside the scrolling part, so it is always visible
     HudWindow TradeWindow(string id, string title, Vector2 pos, Vector2 size, out VBoxContainer body)
     {
         var existing = hudMgr.Get(id);
         if (existing != null)
         {
-            body = (VBoxContainer)((ScrollContainer)existing.Content).GetChild(0);
+            var root0 = (VBoxContainer)existing.Content;
+            body = (VBoxContainer)((ScrollContainer)root0.GetChild(0)).GetChild(0);
+            tradeFooter = (VBoxContainer)root0.GetChild(1);
             existing.SetTitle(title);
             foreach (var c in body.GetChildren()) { body.RemoveChild(c); c.QueueFree(); }
+            foreach (var c in tradeFooter.GetChildren()) { tradeFooter.RemoveChild(c); c.QueueFree(); }
             return existing;
         }
         body = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; body.AddThemeConstantOverride("separation", 4);
-        var sc = new ScrollContainer { ClipContents = true, HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled };
+        var sc = new ScrollContainer { ClipContents = true, HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled, SizeFlagsVertical = Control.SizeFlags.ExpandFill };
         sc.AddChild(body);
-        var w = hudMgr.Add(id, title, sc, pos, size, visibleByDefault: false);
+        tradeFooter = new VBoxContainer(); tradeFooter.AddThemeConstantOverride("separation", 4);
+        var root = new VBoxContainer(); root.AddThemeConstantOverride("separation", 6);
+        root.AddChild(sc); root.AddChild(tradeFooter);
+        var w = hudMgr.Add(id, title, root, pos, size, visibleByDefault: false);
         w.Visible = false;
         return w;
     }
 
-    void ShowTradeWindow(HudWindow w) { w.Visible = true; w.GetParent().MoveChild(w, -1); }
+    /// <summary>Trade windows open to the right of the Look window (which holds the Buy / Sell / Offer buttons), so they never cover it; without a Look window they stay where they are.</summary>
+    void ShowTradeWindow(HudWindow w)
+    {
+        if (itemWin != null && itemWin.Visible && w != itemWin)
+        {
+            var screen = hudMgr.Root.GetViewportRect().Size;
+            float x = itemWin.Position.X + itemWin.Size.X + 6;
+            if (x + w.Size.X > screen.X) x = Mathf.Max(0, itemWin.Position.X - w.Size.X - 6);      // no room on the right: to its left
+            w.Position = new Vector2(x, Mathf.Clamp(itemWin.Position.Y, hudMgr.TopInset, Mathf.Max(hudMgr.TopInset, screen.Y - w.Size.Y)));
+        }
+        w.Visible = true; w.GetParent().MoveChild(w, -1);
+    }
     void HideTradeWindow(string id) { var w = hudMgr.Get(id); if (w != null) w.Visible = false; }
 
     string NameOf(ObjectBase o) => client.Resolve(o.NameRID) ?? "?";
@@ -142,7 +160,7 @@ public partial class Main
             body.AddChild(b);
         }
         var cancel = new Button { Text = "Cancel" }; cancel.Pressed += () => HideTradeWindow("trade_pick");
-        body.AddChild(cancel);
+        tradeFooter.AddChild(cancel);
         ShowTradeWindow(w);
     }
 
@@ -206,7 +224,7 @@ public partial class Main
             HideTradeWindow("trade_buy");
         };
         var cancel = new Button { Text = "Cancel", SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; cancel.Pressed += () => HideTradeWindow("trade_buy");
-        buttons.AddChild(ok); buttons.AddChild(cancel); body.AddChild(buttons);
+        buttons.AddChild(ok); buttons.AddChild(cancel); tradeFooter.AddChild(buttons);
         ShowTradeWindow(w);
         if (System.Environment.GetEnvironmentVariable("M59_TRADEAUTO") == "1" && rows.Count > 0) { rows[0].ck.ButtonPressed = true; GD.Print("[trade] auto: buying the first item"); ok.EmitSignal(BaseButton.SignalName.Pressed); }
     }
@@ -225,7 +243,7 @@ public partial class Main
         var ok = new Button { Text = "OK", SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
         ok.Pressed += () => { var pick = rows.Where(r => r.ck.ButtonPressed).Select(r => Pick(r.it, r.amt)).ToArray(); HideTradeWindow("trade_items"); done(pick); };
         var cancel = new Button { Text = "Cancel", SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; cancel.Pressed += () => HideTradeWindow("trade_items");
-        buttons.AddChild(ok); buttons.AddChild(cancel); body.AddChild(buttons);
+        buttons.AddChild(ok); buttons.AddChild(cancel); tradeFooter.AddChild(buttons);
         ShowTradeWindow(w);
         if (System.Environment.GetEnvironmentVariable("M59_TRADEAUTO") == "1" && rows.Count > 0 && (title.StartsWith("Offer") || title.StartsWith("Deposit"))) { var want = System.Environment.GetEnvironmentVariable("M59_TRADEITEM"); var pickRow = want == null ? rows[0] : rows.FirstOrDefault(r => NameOf(r.it).Contains(want, StringComparison.OrdinalIgnoreCase)); if (pickRow.it == null) { GD.Print("[trade] auto: no item matches " + want); return; } pickRow.ck.ButtonPressed = true; GD.Print("[trade] auto: offering " + NameOf(pickRow.it)); ok.EmitSignal(BaseButton.SignalName.Pressed); }
     }
@@ -258,7 +276,7 @@ public partial class Main
         accept.Pressed += () => { client.TradeAccept(); CloseOfferWindows(); };
         var cancel = new Button { Text = "Cancel offer", SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
         cancel.Pressed += () => { client.TradeCancel(); CloseOfferWindows(); };
-        buttons.AddChild(accept); buttons.AddChild(cancel); body.AddChild(buttons);
+        buttons.AddChild(accept); buttons.AddChild(cancel); tradeFooter.AddChild(buttons);
         ShowTradeWindow(w);
     }
     void OnCounterOffer(ObjectBase[] items)
@@ -290,7 +308,7 @@ public partial class Main
         set.Pressed += () => PickItems("Give which items?", items => { client.TradeCounter(items); tradeCounterSent = true; DrawReceiveOffer(); });
         var cancel = new Button { Text = "Cancel", SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
         cancel.Pressed += () => { client.TradeCancel(); CloseOfferWindows(); };
-        buttons.AddChild(accept); buttons.AddChild(set); buttons.AddChild(cancel); body.AddChild(buttons);
+        buttons.AddChild(accept); buttons.AddChild(set); buttons.AddChild(cancel); tradeFooter.AddChild(buttons);
         if (tradeCounterSent) body.AddChild(new Label { Text = "Waiting for " + tradeOtherName + " to decide...", Modulate = new Color(1, 1, 0.6f) });
         ShowTradeWindow(w);
     }
@@ -313,7 +331,7 @@ public partial class Main
     }
 
     double tradeTestAt; object tradeTestRoom;
-    /// <summary>Test hook: M59_TRADETEST=buy|offer|withdraw starts that trade with the nearest suitable object a few seconds after entering a room.</summary>
+    /// <summary>Test hook: M59_TRADETEST=buy|offer|withdraw|deposit|look|lookbuy starts that trade with the nearest suitable object a few seconds after entering a room.</summary>
     void TradeTestTick()
     {
         var t = System.Environment.GetEnvironmentVariable("M59_TRADETEST");
@@ -323,8 +341,8 @@ public partial class Main
         if (tradeTestAt < 0 || now < tradeTestAt) return;
         tradeTestAt = System.Environment.GetEnvironmentVariable("M59_TRADELOOP") == "1" ? now + 12 : -1; GD.Print("[trade] test " + t);
         foreach (var o in client.Objects) if (objPos.TryGetValue(o.ID, out var op)) GD.Print($"[trade]   {NameOf(o)} #{o.ID} buyable={o.Flags.IsBuyable} offerable={o.Flags.IsOfferable} dist={Mathf.Sqrt((op.x - walker.X) * (op.x - walker.X) + (op.y - walker.Y) * (op.y - walker.Y)) / 1024f:F1} squares");
-        var near = NearbyObjects(o => t == "buy" || t == "withdraw" || t == "look" ? o.Flags.IsBuyable : o.Flags.IsOfferable && (o.Flags.IsPlayer ? o.ID != client.PlayerId : System.Environment.GetEnvironmentVariable("M59_TRADEPLAYER") != "1"));
+        var near = NearbyObjects(o => t == "buy" || t == "withdraw" || t == "look" || t == "lookbuy" ? o.Flags.IsBuyable : o.Flags.IsOfferable && (o.Flags.IsPlayer ? o.ID != client.PlayerId : System.Environment.GetEnvironmentVariable("M59_TRADEPLAYER") != "1"));
         if (near.Count == 0) { AddChatLine("There is nobody close enough.", "System"); return; }
-        switch (t) { case "buy": client.TradeRequestBuy(near[0].ID); break; case "offer": TradeOfferTo(near[0], false); break; case "deposit": TradeOfferTo(near[0], true); break; case "withdraw": client.TradeRequestWithdraw(near[0].ID); break; case "look": client.LookAt(near[0].ID); break; }
+        switch (t) { case "buy": client.TradeRequestBuy(near[0].ID); break; case "offer": TradeOfferTo(near[0], false); break; case "deposit": TradeOfferTo(near[0], true); break; case "withdraw": client.TradeRequestWithdraw(near[0].ID); break; case "look": client.LookAt(near[0].ID); break; case "lookbuy": { client.LookAt(near[0].ID); var id = near[0].ID; var tm = new Godot.Timer { OneShot = true, WaitTime = 2.5 }; AddChild(tm); tm.Timeout += () => { client.TradeRequestBuy(id); tm.QueueFree(); }; tm.Start(); break; } }
     }
 }

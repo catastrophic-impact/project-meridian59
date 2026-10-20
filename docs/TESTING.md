@@ -21,7 +21,7 @@ Flags (parsed at the top of `client/Main.cs`): `--connect user pw`, `--host`, `-
 | Variable | What it does |
 | --- | --- |
 | `M59_OPENWIN=who,mail,guild,details,interface,keys,...` | open these windows at start |
-| `M59_TRADETEST=buy\|offer\|withdraw\|deposit\|look` | start that trade with the nearest suitable object (`M59_TRADEAUTO=1` picks and accepts by itself, `M59_TRADEITEM=<name>`, `M59_TRADEPLAYER=1` targets players, `M59_TRADELOOP=1` repeats) |
+| `M59_TRADETEST=buy\|offer\|withdraw\|deposit\|look\|lookbuy` | start that trade with the nearest suitable object (`M59_TRADEAUTO=1` picks and accepts by itself, `M59_TRADEITEM=<name>`, `M59_TRADEPLAYER=1` targets players, `M59_TRADELOOP=1` repeats) |
 | `M59_MAILTEST="to\|subject\|text"` | send a letter a few seconds after login |
 | `M59_GUILDTEST=<name>` | found a guild when the server offers to |
 | `M59_GROUPTEST=invite\|accept\|companion:mage\|healer\|tank\|fighter`, `M59_COMPCMD=comp_attack\|comp_passive\|comp_assist` | group and companion tests |
@@ -31,6 +31,7 @@ Flags (parsed at the top of `client/Main.cs`): `--connect user pw`, `--host`, `-
 | `M59_MAPMAX=1`, `M59_MAPALL=1`, `M59_TESTLIGHT=1`, `M59_DRAGDELTA=x,y`, `M59_LEAD=<seconds>` | map, lighting and drag tweaks |
 | `M59_AVATAR_SHEET=<dir>`, `M59_AVATAR_OBJ`, `M59_AVATAR_MOTION`, `M59_FACE_DEBUG=<file>` | dump avatar / face composites |
 | `M59_RESOURCE=<dir>` | use another resource folder |
+| `M59_LAYOUTFILE=<file>` | use this window layout file instead of `userdata/hud_layout.json` (tests that need the default layout, or that must not touch yours) |
 | `M59_WINDOWED=1` | do not maximize the window at start (screenshots keep a fixed size) |
 | `M59_HIDEHUD=1`, `M59_POVHOLD=1` | hide all windows for a clean screenshot; keep first-person hand animations on their first frame |
 

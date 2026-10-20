@@ -9,6 +9,8 @@ public partial class HudWindow : Control
 {
     public string WindowId { get; }
     public bool Locked { get; set; }
+    /// <summary>Only the character window shows a title bar (the name); every other window is dragged by any empty spot.</summary>
+    public bool Titled { get; }
     public bool Resizable { get; set; } = true;
     public Vector2 MinWindowSize { get; set; } = new Vector2(150, 70);
     public Control Content { get; }
@@ -22,9 +24,9 @@ public partial class HudWindow : Control
     bool dragging, resizing;
     Vector2 grabOffset;
 
-    public HudWindow(string id, string title, Control content)
+    public HudWindow(string id, string title, Control content, bool titled = false)
     {
-        WindowId = id;
+        WindowId = id; Titled = titled;
         Content = content;
         MouseFilter = MouseFilterEnum.Pass;
 
@@ -49,7 +51,8 @@ public partial class HudWindow : Control
 
         content.ClipContents = true;
         content.SetAnchorsPreset(LayoutPreset.FullRect);
-        content.OffsetLeft = 6; content.OffsetTop = 26; content.OffsetRight = -6; content.OffsetBottom = -6;
+        content.OffsetLeft = 6; content.OffsetTop = titled ? 26 : 6; content.OffsetRight = -6; content.OffsetBottom = -6;
+        bar.Visible = titled;
         AddChild(content);
 
         grip = new Control { CustomMinimumSize = new Vector2(16, 16), MouseFilter = MouseFilterEnum.Stop, MouseDefaultCursorShape = CursorShape.Fdiagsize };
@@ -77,9 +80,9 @@ public partial class HudWindow : Control
     {
         var x = new Button { Text = "x", Flat = true, FocusMode = FocusModeEnum.None, CustomMinimumSize = new Vector2(22, 20) };
         x.SetAnchorsPreset(LayoutPreset.TopRight);
-        x.OffsetLeft = -24; x.OffsetTop = 1; x.OffsetRight = -2; x.OffsetBottom = 21;
+        x.OffsetLeft = -24; x.OffsetTop = 2; x.OffsetRight = -2; x.OffsetBottom = 22;
         x.Pressed += () => { Visible = false; Changed?.Invoke(); };
-        bar.AddChild(x);
+        AddChild(x);
     }
 
     public void SetLocked(bool locked)
@@ -98,20 +101,24 @@ public partial class HudWindow : Control
 
     Vector2 ParentSize => GetParent<Control>()?.Size ?? new Vector2(1280, 720);
 
+    // dragging: starts on a press that no control inside the window used (title bar, borders, labels, empty areas), then follows the mouse wherever it goes
     void OnBarInput(InputEvent e)
     {
-        if (e is InputEventMouseButton mb && mb.ButtonIndex == MouseButton.Left)
+        if (e is InputEventMouseButton mb && mb.ButtonIndex == MouseButton.Left && mb.Pressed && !Locked)
         {
-            if (mb.Pressed && !Locked) { dragging = true; grabOffset = GetParent<Control>().GetLocalMousePosition() - Position; GetParent().MoveChild(this, -1); }
-            else if (!mb.Pressed && dragging) { dragging = false; Changed?.Invoke(); }
+            dragging = true; grabOffset = GetParent<Control>().GetLocalMousePosition() - Position; GetParent().MoveChild(this, -1);
+            AcceptEvent();
         }
-        else if (e is InputEventMouseMotion && dragging)
-        {
-            var p = GetParent<Control>().GetLocalMousePosition() - grabOffset;
-            var ps = ParentSize; float top = TopLimit();
-            // the whole window stays inside the client area, below the top bar
-            Position = new Vector2(Mathf.Clamp(p.X, 0, Mathf.Max(0, ps.X - Size.X)), Mathf.Clamp(p.Y, top, Mathf.Max(top, ps.Y - Size.Y)));
-        }
+    }
+
+    public override void _GuiInput(InputEvent e) => OnBarInput(e);
+
+    void DragTo(Vector2 mouseLocal)
+    {
+        var p = mouseLocal - grabOffset;
+        var ps = ParentSize; float top = TopLimit();
+        // the whole window stays inside the client area, below the top bar
+        Position = new Vector2(Mathf.Clamp(p.X, 0, Mathf.Max(0, ps.X - Size.X)), Mathf.Clamp(p.Y, top, Mathf.Max(top, ps.Y - Size.Y)));
     }
 
     void OnGripInput(InputEvent e)
@@ -132,6 +139,11 @@ public partial class HudWindow : Control
 
     public override void _Input(InputEvent e)
     {
+        if (dragging)
+        {
+            if (e is InputEventMouseMotion) DragTo(GetParent<Control>().GetLocalMousePosition());
+            else if (e is InputEventMouseButton up && up.ButtonIndex == MouseButton.Left && !up.Pressed) { dragging = false; Changed?.Invoke(); }
+        }
         // clicking anywhere on a window brings it to the front (without consuming the click)
         if (e is InputEventMouseButton mb && mb.Pressed && mb.ButtonIndex == MouseButton.Left && Visible && GetGlobalRect().HasPoint(GetGlobalMousePosition()))
             GetParent()?.MoveChild(this, -1);
@@ -184,10 +196,10 @@ public class HudManager
 
     public HudWindow Get(string id) => windows.TryGetValue(id, out var w) ? w : null;
 
-    /// <summary>Add a window. posFrac = default top-left as a fraction of the screen (negative = measured from the right/bottom edge).</summary>
+    /// <summary>Add a window. Where it starts is decided by DefaultPosition (posFrac is no longer used); the size is the default size.</summary>
     public HudWindow Add(string id, string title, Control content, Vector2 posFrac, Vector2 size, bool resizable = true, bool visibleByDefault = true)
     {
-        var w = new HudWindow(id, title, content) { Resizable = resizable, TopLimit = () => TopInset };
+        var w = new HudWindow(id, title, content, titled: id == "status") { Resizable = resizable, TopLimit = () => TopInset };
         w.Changed += Save;
         Root.AddChild(w);
         windows[id] = w;
@@ -208,12 +220,29 @@ public class HudManager
         }
         else
         {
-            var (pf, sz) = defaults[w.WindowId];
-            float x = pf.X >= 0 ? pf.X * ps.X : ps.X + pf.X * ps.X - sz.X;
-            float y = pf.Y >= 0 ? pf.Y * ps.Y : ps.Y + pf.Y * ps.Y - sz.Y;
+            var sz = defaults[w.WindowId].size;
             w.Size = FitSize(sz, ps);
-            w.Position = Clamp(new Vector2(x, y), w.Size, ps);
+            w.Position = Clamp(DefaultPosition(w.WindowId, w.Size, ps), w.Size, ps);
             w.Visible = visibleByDefault;
+        }
+    }
+
+    /// <summary>The built-in layout: character top left, its target to the right and the group below, map top right, chat bottom left, hotbar bottom centre, pack (inventory, spells, skills, stats) bottom right;
+    /// every other window opens in the middle of the screen.</summary>
+    Vector2 DefaultPosition(string id, Vector2 size, Vector2 ui)
+    {
+        const float m = 6;
+        float top = TopInset + m;
+        switch (id)
+        {
+            case "status": return new Vector2(m, top);
+            case "target": return new Vector2(m + 300 + m, top);
+            case "group": return new Vector2(m, top + 126 + m);
+            case "map": return new Vector2(ui.X - size.X - m, top);
+            case "chat": return new Vector2(m, ui.Y - size.Y - m);
+            case "hotbar": return new Vector2((ui.X - size.X) / 2, ui.Y - size.Y - m);
+            case "inventory": return new Vector2(ui.X - size.X - m, ui.Y - size.Y - m);
+            default: return new Vector2((ui.X - size.X) / 2, TopInset + (ui.Y - TopInset - size.Y) / 2);
         }
     }
 

@@ -7,7 +7,7 @@ using Godot;
 /// (our server only, see user.kod SendStatsDetail). Offense / defense and the hit chances against the current target are the server's real formulas.</summary>
 public partial class Main
 {
-    HudWindow detailsWin; VBoxContainer detailsBox; double detailsAt; List<(byte id, int a, int b)> detailsRows = new List<(byte, int, int)>(); uint detailsTarget;
+    int statsTab; VBoxContainer detailsBox; double detailsAt; List<(byte id, int a, int b)> detailsRows = new List<(byte, int, int)>(); uint detailsTarget;
 
     static readonly (uint bit, string name)[] WeaponTypes =
     {
@@ -30,20 +30,18 @@ public partial class Main
 
     void BuildDetailsUi()
     {
-        var scroll = new ScrollContainer { ClipContents = true, HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled };
+        var scroll = new ScrollContainer { Name = "Stats", ClipContents = true, HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, SizeFlagsVertical = Control.SizeFlags.ExpandFill };
         detailsBox = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; detailsBox.AddThemeConstantOverride("separation", 2);
-        scroll.AddChild(detailsBox);
-        detailsWin = hudMgr.Add("details", "Details", scroll, new Vector2(0.01f, 0.30f), new Vector2(330, 470), visibleByDefault: false);
-        detailsWin.Visible = false;
+        var pad = new MarginContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; pad.AddThemeConstantOverride("margin_right", 12);
+        pad.AddChild(detailsBox); scroll.AddChild(pad);
+        packTabs.AddChild(scroll); statsTab = packTabs.GetChildCount() - 1;
+        packTabs.TabChanged += _ => detailsAt = 0;
         client.DetailsReceived += rows => { detailsRows = rows; UpdateGrowthBar(); if (AnimLog) GD.Print("[details] " + string.Join(" ", rows.Select(r => $"{r.id}:{r.a}/{r.b}"))); FillDetails(); };
-        client.EquipmentChanged += () => { if (detailsWin.Visible) detailsAt = 0; };
+        client.EquipmentChanged += () => { if (StatsVisible) detailsAt = 0; };
     }
 
-    void ToggleDetails()
-    {
-        hudMgr.Toggle("details");
-        if (detailsWin.Visible) detailsAt = 0;
-    }
+    /// <summary>The Stats tab of the pack window is on screen.</summary>
+    bool StatsVisible => hudMgr?.Get("inventory") is HudWindow w && w.Visible && packTabs != null && packTabs.CurrentTab == statsTab;
 
     /// <summary>The thin bar under vigor: how close the hidden "gain chance" counter is to its high mark, i.e. the chance that the next kill of a tougher creature adds a point of maximum health.</summary>
     void UpdateGrowthBar()
@@ -60,8 +58,8 @@ public partial class Main
 
     void PollDetails()
     {
-        if (detailsWin == null || !roomShown) return;
-        bool open = detailsWin.Visible;
+        if (detailsBox == null || !roomShown) return;
+        bool open = StatsVisible;
         double now = Time.GetTicksMsec() / 1000.0;
         if (now < detailsAt && (!open || targetId == detailsTarget)) return;
         detailsAt = now + (open ? 1.5 : 5); detailsTarget = targetId;
@@ -75,20 +73,21 @@ public partial class Main
         var rows = detailsRows;
         (int a, int b)? Row(byte id) { foreach (var r in rows) if (r.id == id) return (r.a, r.b); return null; }
         var good = new Color(0.55f, 1f, 0.55f); var bad = new Color(1f, 0.55f, 0.5f);
-        GridContainer grid = null;
         void Section(string title)
         {
             var l = new Label { Text = title, Modulate = new Color(1f, 0.9f, 0.5f) }; l.AddThemeFontSizeOverride("font_size", 15);
             detailsBox.AddChild(new HSeparator()); detailsBox.AddChild(l);
-            grid = new GridContainer { Columns = 2 }; grid.AddThemeConstantOverride("h_separation", 12); grid.AddThemeConstantOverride("v_separation", 1);
-            detailsBox.AddChild(grid);
+
         }
         void Line(string label, string value, Color? color = null, string tip = null)
         {
-            var l = new Label { Text = label, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, TooltipText = tip ?? "", MouseFilter = tip != null ? Control.MouseFilterEnum.Stop : Control.MouseFilterEnum.Ignore };
-            var v = new Label { Text = value, HorizontalAlignment = HorizontalAlignment.Right, MouseFilter = Control.MouseFilterEnum.Ignore };
+            // both texts wrap inside the window width, so nothing is ever cut off at the edge
+            var row = new HBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, TooltipText = tip ?? "", MouseFilter = tip != null ? Control.MouseFilterEnum.Stop : Control.MouseFilterEnum.Pass };
+            row.AddThemeConstantOverride("separation", 10);
+            var l = new Label { Text = label, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, AutowrapMode = TextServer.AutowrapMode.WordSmart, CustomMinimumSize = new Vector2(70, 0), MouseFilter = Control.MouseFilterEnum.Ignore };
+            var v = new Label { Text = value, HorizontalAlignment = HorizontalAlignment.Right, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, AutowrapMode = TextServer.AutowrapMode.WordSmart, CustomMinimumSize = new Vector2(90, 0), MouseFilter = Control.MouseFilterEnum.Ignore };
             if (color != null) v.Modulate = color.Value;
-            grid.AddChild(l); grid.AddChild(v);
+            row.AddChild(l); row.AddChild(v); detailsBox.AddChild(row);
         }
         string Signed(int n) => n > 0 ? "+" + n : n.ToString();
         string target = targetId != 0 && targetId != client.PlayerId ? (client.Resolve(client.Objects.Find(o => o.ID == targetId)?.NameRID ?? 0) ?? "your target") : null;

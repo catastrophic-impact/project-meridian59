@@ -671,7 +671,7 @@ public partial class Main : Node
         if (!client.IsAdmin) { var aw = hudMgr?.Get("admin"); if (aw != null && aw.Visible) hudMgr.Toggle("admin"); }   // a saved layout must not show admin tools to a normal account
         if (optAdminWin && client.IsAdmin) { optAdminWin = false; if (hudMgr?.Get("admin")?.Content is TabContainer tc0) { tc0.CurrentTab = 1; RefreshAdminTargets(); } var aw0 = hudMgr?.Get("admin"); if (aw0 != null && !aw0.Visible) hudMgr.Toggle("admin"); if (adminFilter != null) adminFilter.Text = "cor"; FillAdminList(); }
         hudMgr.Root.Visible = System.Environment.GetEnvironmentVariable("M59_HIDEHUD") != "1";   // M59_HIDEHUD=1: a clean view for screenshots
-        foreach (var wn in (System.Environment.GetEnvironmentVariable("M59_OPENWIN") ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries)) { var hw = hudMgr.Get(wn); if (hw != null && !hw.Visible) { if (wn == "who") ToggleWho(); else if (wn == "mail") ToggleMail(); else if (wn == "guild") ToggleGuild(); else if (wn == "details") ToggleDetails(); else hudMgr.Toggle(wn); } }   // test hook
+        foreach (var wn in (System.Environment.GetEnvironmentVariable("M59_OPENWIN") ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries)) { if (wn == "details") { ToggleTab(3); continue; } var hw = hudMgr.Get(wn); if (hw != null && !hw.Visible) { if (wn == "who") ToggleWho(); else if (wn == "mail") ToggleMail(); else if (wn == "guild") ToggleGuild(); else if (wn == "details") ToggleTab(3); else hudMgr.Toggle(wn); } }   // test hook
         if (buffRow != null) buffRow.Visible = true;
         if (miniMap != null) miniMap.SavePath = Path.GetFullPath(ProjectSettings.GlobalizePath("res://../userdata/map_" + (client.CharacterName ?? "x").Replace('/', '_') + ".json"));
         miniMap?.SetRoom(currentRoom, Path.GetFileName(path));
@@ -1346,7 +1346,7 @@ public partial class Main : Node
     // ------------------------------------------------------------------ chat
     void BuildHud()
     {
-        string layoutPath = Path.GetFullPath(ProjectSettings.GlobalizePath("res://../userdata/hud_layout.json"));
+        string layoutPath = System.Environment.GetEnvironmentVariable("M59_LAYOUTFILE") ?? Path.GetFullPath(ProjectSettings.GlobalizePath("res://../userdata/hud_layout.json"));   // M59_LAYOUTFILE: tests use their own layout file
         hudMgr = new HudManager(this, GetWindow(), layoutPath, Path.GetFullPath(ProjectSettings.GlobalizePath("res://layouts")), Path.GetFullPath(ProjectSettings.GlobalizePath("res://../userdata/layouts")));
         BuildAudioSliders();
         LoadDebugSettings(); BuildDebugLogUi();
@@ -1434,7 +1434,7 @@ public partial class Main : Node
         miniMap.ToggleMax = SetMapMaximized;
         var mapArea = miniMap;
         mbox.AddChild(mapRoomLabel); mbox.AddChild(mapArea);
-        hudMgr.Add("map", "Map", mbox, new Vector2(-0.01f, 0.06f), new Vector2(220, 220));
+        hudMgr.Add("map", "Map", mbox, new Vector2(-0.01f, 0.06f), new Vector2(250, 270));
         client.StatsChanged += UpdateBars;
         UpdateBars();
 
@@ -1453,7 +1453,7 @@ public partial class Main : Node
         ibox.Name = "Inventory";
         packTabs = new TabContainer();
         packTabs.AddChild(ibox);
-        hudMgr.Add("inventory", "Inventory", packTabs, new Vector2(0.54f, 0.40f), new Vector2(300, 340));   // leaves the bottom-right corner free for the first-person weapon
+        hudMgr.Add("inventory", "Pack", packTabs, new Vector2(0.54f, 0.40f), new Vector2(310, 380));
         // --- look window (right-click an inventory item, or click anything in the world): picture top-left, name and description to its right
         var hrow = new HBoxContainer();
         hrow.AddThemeConstantOverride("separation", 10);
@@ -1474,11 +1474,11 @@ public partial class Main : Node
         BuildGroupUi();
         BuildTradeUi();
         BuildSocialUi();
-        BuildDetailsUi();
         BuildKeysUi();
         hudMgr.FitSettingsWindows();
         hudMgr.EnsureMinHeight("status", 126);
         BuildSpellWindows();
+        BuildDetailsUi();            // the Stats tab, after Inventory / Spells / Skills
         BuildAdminWindow();
         itemWin.AddCloseButton();
         itemWin.Visible = false;   // the Look window only opens when something is looked at (a saved layout may have left it open)

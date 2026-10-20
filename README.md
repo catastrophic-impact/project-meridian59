@@ -53,7 +53,7 @@ reload, memory / timers / usage) · **Game settings** (every rule above, with de
 * **Shops and trading** — right-click a merchant, banker or player in the Look window: buy, sell, make and answer offers, deposit and withdraw; **mail**, a **Who** list and a **Guild** window on the top bar.
 * **Growth bar** — shows how close the character is to getting tougher (the server's hidden max-health gain counter).
 * **Stats window** — attributes with effect bonuses, offense / defense ratings, hit chances against your target, resistances (server numbers).
-* **Third-person camera** that stays inside the room, **key remapping** (Interface window), windows you can move, resize and lock, UI scale, **layout templates**
+* **Third-person camera** that stays inside the room, **key remapping** (Interface window), windows you drag from any empty spot (no title bars), resize and lock, UI scale, **layout templates**
   (ready-made and your own), starts maximized with F11 for full screen; name tags hide behind walls.
 * Works with our server's extras; against other servers it still plays the base game (group, buff timers and combat numbers stay empty).
 
